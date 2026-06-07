@@ -22,8 +22,8 @@ try {
 }
 
 /**
- * 
- * @param {String} word 
+ *
+ * @param {String} word
  * @returns {Boolean} return true if word included in dictionary
  */
 const checkWordIfInDictionary = (word) => {
@@ -31,7 +31,7 @@ const checkWordIfInDictionary = (word) => {
 }
 
 /**
- * 
+ *
  * @returns {Number} length of dictionary array
  */
 const countWordInDictionary = () => {
@@ -39,7 +39,7 @@ const countWordInDictionary = () => {
 }
 
 /**
- * 
+ *
  * @returns {Array} report words array
  */
 const getReportWords = () => {
@@ -47,8 +47,8 @@ const getReportWords = () => {
 }
 
 /**
- * 
- * @param {String} word 
+ *
+ * @param {String} word
  * @returns {Boolean}
  */
 const checkWordIfInReportDictionary = (word) => {
@@ -56,12 +56,21 @@ const checkWordIfInReportDictionary = (word) => {
 }
 
 /**
- * 
- * @param {String} word 
+ *
+ * @param {String} word
  */
 const addWordToReportList = (word) => {
     reportDic.push(word)
     fs.writeFileSync(reportWordsPath, reportDic.join('\n'))
+}
+
+/**
+ *
+ * @param {String} word
+ */
+const addWordToDictionary = (word) => {
+    dic.push(word)
+    fs.writeFileSync(officalWordsPath, dic.join('\n'))
 }
 
 module.exports = {
@@ -69,5 +78,6 @@ module.exports = {
     countWordInDictionary,
     getReportWords,
     checkWordIfInReportDictionary,
-    addWordToReportList
+    addWordToReportList,
+    addWordToDictionary
 }

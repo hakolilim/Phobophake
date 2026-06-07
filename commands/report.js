@@ -1,9 +1,6 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, InteractionCollector, Client, PermissionsBitField, ButtonStyle } = require('discord.js')
-const fs = require('fs')
-const path = require('path')
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Client, PermissionsBitField, ButtonStyle } = require('discord.js')
 require('dotenv').config()
 const REPORT_CHANNEL = process.env.REPORT_CHANNEL || ''
-const reportWordsPath = path.resolve(__dirname, './data/report-words.txt')
 const dictionary = require('../utils/dictionary')
 
 const messageEmbed = (msg) => {
@@ -14,8 +11,8 @@ const messageEmbed = (msg) => {
 }
 
 /**
- * 
- * @param {Object} wordData 
+ *
+ * @param {Object} wordData
  * @param {Number} status
  * @returns {EmbedBuilder}
  */
@@ -25,7 +22,7 @@ const reportEmbed = (wordData, status = 0) => {
         .setThumbnail(wordData.guildIcon)
         .addFields(
             {
-                name: ':regional_indicator_p: Từ báo cáo',
+                name: wordData.type === 'add' ? ':heavy_plus_sign: Từ đề xuất thêm' : ':regional_indicator_p: Từ báo cáo',
                 value: `**${wordData.word}**`,
                 inline: true
             },
@@ -58,11 +55,45 @@ const reportEmbed = (wordData, status = 0) => {
         .setTimestamp()
 }
 
+const normalizeWord = (word) => {
+    const tu = word.trim().toLowerCase()
+    const wArr = tu.split(/\s+/).filter(Boolean)
+    return {
+        word: wArr.join(' '),
+        wordCount: wArr.length
+    }
+}
+
+const getActionWord = (type) => {
+    return type === 'add' ? 'thêm từ' : 'báo cáo'
+}
+
+const applyApprovedWord = (type, word) => {
+    if (type === 'add') {
+        if (global.dicData && !global.dicData.includes(word)) {
+            global.dicData.push(word)
+        }
+        dictionary.addWordToDictionary(word)
+        return
+    }
+
+    dictionary.addWordToReportList(word)
+}
+
+const sendDmToReporter = async (client, userId, embeds) => {
+    const user = await client.users.fetch(userId)
+    if (!user) {
+        return
+    }
+
+    await user.send({ embeds })
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('report')
         .setDescription('Báo cáo từ ngữ không phù hợp trong từ điển')
-        .addStringOption(option => 
+        .addStringOption(option =>
             option
                 .setName('word')
                 .setDescription('Từ muốn báo cáo')
@@ -72,11 +103,20 @@ module.exports = {
             option
                 .setName('reason')
                 .setDescription('Lý do (không bắt buộc)')
+        )
+        .addStringOption(option =>
+            option
+                .setName('type')
+                .setDescription('Chọn báo cáo hay đề xuất thêm từ')
+                .addChoices(
+                    { name: 'Báo cáo', value: 'report' },
+                    { name: 'Thêm từ', value: 'add' }
+                )
         ),
     /**
-     * 
-     * @param {InteractionCollector} interaction 
-     * @param {Client} client 
+     *
+     * @param {InteractionCollector} interaction
+     * @param {Client} client
      */
     async execute (interaction, client) {
         if (REPORT_CHANNEL === '') {
@@ -94,34 +134,41 @@ module.exports = {
         } else {
             let word = interaction.options.getString('word')
             let reason = interaction.options.getString('reason') ?? 'No reason provided.'
+            const type = interaction.options.getString('type') ?? 'report'
 
-            let tu = word.trim().toLowerCase()
-            let wArr = tu.split(/\s+/).filter(Boolean)
-            word = wArr.join(' ')
+            const normalized = normalizeWord(word)
+            word = normalized.word
 
-            if (!(wArr.length == 2)) {
+            if (normalized.wordCount !== 2) {
                 return await interaction.reply({
                     content: `Cụm từ không hợp lệ`,
                     ephemeral: true
                 })
             }
 
-            if (!dictionary.checkWordIfInDictionary(word)) {
+            if (type === 'report' && !dictionary.checkWordIfInDictionary(word)) {
                 return await interaction.reply({
                     content: `Cụm từ này không có trong từ điển của Bot`,
                     ephemeral: true
                 })
             }
 
-            if (dictionary.checkWordIfInReportDictionary(word)) {
+            if (type === 'report' && dictionary.checkWordIfInReportDictionary(word)) {
                 return await interaction.reply({
                     content: `Cụm từ này đã có trong danh sách đen của Bot`,
                     ephemeral: true
                 })
             }
 
+            if (type === 'add' && dictionary.checkWordIfInDictionary(word)) {
+                return await interaction.reply({
+                    content: `Cụm từ này đã có trong từ điển của Bot`,
+                    ephemeral: true
+                })
+            }
+
             await interaction.reply({
-                content: `Đã báo cáo từ **${word}**`,
+                content: `Đã gửi yêu cầu ${getActionWord(type)} từ **${word}**`,
                 ephemeral: true
             })
 
@@ -137,10 +184,11 @@ module.exports = {
 
             const row = new ActionRowBuilder()
                 .addComponents(acceptButton, declineButton)
-            
+
             const wordData = {
                 word,
                 reason,
+                type,
                 user: interaction.user.username,
                 guildName: interaction.guild.name,
                 guildId: interaction.guildId,
@@ -164,19 +212,19 @@ module.exports = {
                         ephemeral: true
                     })
                 }
-        
+
                 let status
-        
+
                 if (i.customId === 'accept') {
                     status = 1
-                    dictionary.addWordToReportList(word)
+                    applyApprovedWord(type, word)
                 } else {
                     status = 2
                 }
 
-                client.users.send(interaction.user.id, {
-                    embeds: [messageEmbed(`Từ \`${word}\` của bạn đã ${(status === 1) ? 'được đồng ý gỡ bỏ' : 'bị từ chối gỡ bỏ'} bởi mod \`${i.member.displayName}\``)]
-                })
+                await sendDmToReporter(client, interaction.user.id, [
+                    messageEmbed(`Từ \`${word}\` của bạn đã ${(status === 1) ? (type === 'add' ? 'được đồng ý thêm vào từ điển' : 'được đồng ý gỡ bỏ') : (type === 'add' ? 'bị từ chối thêm vào từ điển' : 'bị từ chối gỡ bỏ')} bởi mod \`${i.member.displayName}\``)
+                ])
 
                 await msg.edit({
                     embeds: [reportEmbed(wordData, status)],
