@@ -151,6 +151,8 @@ axios.get(contributeWordsUrl)
 const START_COMMAND = '!start'
 const STOP_COMMAND = '!stop'
 const PREFIX = '?phobo'
+const CORRECT_EMOJI = process.env.CORRECT_EMOJI || '✅'
+const WRONG_EMOJI = process.env.WRONG_EMOJI || '❌'
 let queryCount = stats.getQuery()
 
 // We create a collection for commands
@@ -328,14 +330,6 @@ client.on('messageCreate', async message => {
         return
     } else if (message.content === STOP_COMMAND) {
 
-        if(!message.member.permissionsIn(configChannel).has(PermissionsBitField.Flags.ManageChannels)) {
-            message.reply({
-                content: 'Bạn không có quyền dùng lệnh này',
-                ephemeral: true
-            })
-            return
-        }
-
         if (isRunning) {
             sendMessageToChannel(`Đã kết thúc lượt này! Lượt mới đã bắt đầu!`, configChannel)
             initWordData(configChannel)
@@ -486,7 +480,7 @@ client.on('messageCreate', async message => {
         // player can't answer 2 times
         let lastPlayerId = currentWordData.currentPlayer.id
         if (message.author.id === lastPlayerId) {
-            message.react('❌')
+            message.react(WRONG_EMOJI)
             sendAutoDeleteMessageToChannel('Bạn đã trả lời lượt trước rồi, hãy đợi đối thủ!', configChannel)
             return
         }
@@ -498,7 +492,7 @@ client.on('messageCreate', async message => {
         const lastWord = words[words.length - 1]
         const args2 = lastWord.split(/\s+/).filter(Boolean)
         if (!(args1[0] === args2[args2.length - 1])) {
-            message.react('❌')
+            message.react(WRONG_EMOJI)
             // sendMessageToChannel('Từ này không bắt đầu với tiếng `' + args2[args2.length - 1] + '`', configChannel)
             sendAutoDeleteMessageToChannel('Từ này không bắt đầu với tiếng `' + args2[args2.length - 1] + '`', configChannel)
             return
@@ -506,14 +500,14 @@ client.on('messageCreate', async message => {
     }
 
     if (checkIfWordUsed(tu)) {
-        message.react('❌')
+        message.react(WRONG_EMOJI)
         sendAutoDeleteMessageToChannel('Từ này đã được sử dụng!', configChannel)
         return
     }
 
     if(!checkDict(tu)) {
         // check in dictionary
-        message.react('❌')
+        message.react(WRONG_EMOJI)
         updateRankingForUser(0, 0, 1)
         //sendMessageToChannel('Từ này không có trong từ điển tiếng Việt!', configChannel)
         return
@@ -526,7 +520,7 @@ client.on('messageCreate', async message => {
 
     fs.writeFileSync(wordDataPath, JSON.stringify(wordDataChannel))
 
-    message.react('✅')
+    message.react(CORRECT_EMOJI)
 
     stats.addWordPlayedCount()
 

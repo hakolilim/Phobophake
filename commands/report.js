@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Client, PermissionsBitField, ButtonStyle } = require('discord.js')
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Client, ButtonStyle } = require('discord.js')
 require('dotenv').config()
 const REPORT_CHANNEL = process.env.REPORT_CHANNEL || ''
 const dictionary = require('../utils/dictionary')
@@ -126,114 +126,100 @@ module.exports = {
             })
         }
 
-        if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
+        let word = interaction.options.getString('word')
+        let reason = interaction.options.getString('reason') ?? 'No reason provided.'
+        const type = interaction.options.getString('type') ?? 'report'
+
+        const normalized = normalizeWord(word)
+        word = normalized.word
+
+        if (normalized.wordCount !== 2) {
             return await interaction.reply({
-                content: 'Bạn cần có quyền admin để báo cáo từ.',
+                content: `Cụm từ không hợp lệ`,
                 ephemeral: true
             })
-        } else {
-            let word = interaction.options.getString('word')
-            let reason = interaction.options.getString('reason') ?? 'No reason provided.'
-            const type = interaction.options.getString('type') ?? 'report'
-
-            const normalized = normalizeWord(word)
-            word = normalized.word
-
-            if (normalized.wordCount !== 2) {
-                return await interaction.reply({
-                    content: `Cụm từ không hợp lệ`,
-                    ephemeral: true
-                })
-            }
-
-            if (type === 'report' && !dictionary.checkWordIfInDictionary(word)) {
-                return await interaction.reply({
-                    content: `Cụm từ này không có trong từ điển của Bot`,
-                    ephemeral: true
-                })
-            }
-
-            if (type === 'report' && dictionary.checkWordIfInReportDictionary(word)) {
-                return await interaction.reply({
-                    content: `Cụm từ này đã có trong danh sách đen của Bot`,
-                    ephemeral: true
-                })
-            }
-
-            if (type === 'add' && dictionary.checkWordIfInDictionary(word)) {
-                return await interaction.reply({
-                    content: `Cụm từ này đã có trong từ điển của Bot`,
-                    ephemeral: true
-                })
-            }
-
-            await interaction.reply({
-                content: `Đã gửi yêu cầu ${getActionWord(type)} từ **${word}**`,
-                ephemeral: true
-            })
-
-            const acceptButton = new ButtonBuilder()
-                .setCustomId('accept')
-                .setLabel('Đồng ý')
-                .setStyle(ButtonStyle.Success)
-
-            const declineButton = new ButtonBuilder()
-                .setCustomId('decline')
-                .setLabel('Từ chối')
-                .setStyle(ButtonStyle.Danger)
-
-            const row = new ActionRowBuilder()
-                .addComponents(acceptButton, declineButton)
-
-            const wordData = {
-                word,
-                reason,
-                type,
-                user: interaction.user.username,
-                guildName: interaction.guild.name,
-                guildId: interaction.guildId,
-                guildIcon: interaction.guild.iconURL({ dynamic: true })
-            }
-
-            const msg = await client.channels.cache.get(REPORT_CHANNEL).send({
-                embeds: [reportEmbed(wordData)],
-                components: [row]
-            })
-
-            const filter = i => i.customId === 'accept' || i.customId === 'decline'
-
-            const collection = msg.createMessageComponentCollector({filter})
-
-            collection.on('collect', async i => {
-
-                if (!i.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
-                    return i.reply({
-                        content: 'Bạn không có quyền này',
-                        ephemeral: true
-                    })
-                }
-
-                let status
-
-                if (i.customId === 'accept') {
-                    status = 1
-                    applyApprovedWord(type, word)
-                } else {
-                    status = 2
-                }
-
-                await sendDmToReporter(client, interaction.user.id, [
-                    messageEmbed(`Từ \`${word}\` của bạn đã ${(status === 1) ? (type === 'add' ? 'được đồng ý thêm vào từ điển' : 'được đồng ý gỡ bỏ') : (type === 'add' ? 'bị từ chối thêm vào từ điển' : 'bị từ chối gỡ bỏ')} bởi mod \`${i.member.displayName}\``)
-                ])
-
-                await msg.edit({
-                    embeds: [reportEmbed(wordData, status)],
-                    components: []
-                })
-                return
-            })
-
         }
 
+        if (type === 'report' && !dictionary.checkWordIfInDictionary(word)) {
+            return await interaction.reply({
+                content: `Cụm từ này không có trong từ điển của Bot`,
+                ephemeral: true
+            })
+        }
+
+        if (type === 'report' && dictionary.checkWordIfInReportDictionary(word)) {
+            return await interaction.reply({
+                content: `Cụm từ này đã có trong danh sách đen của Bot`,
+                ephemeral: true
+            })
+        }
+
+        if (type === 'add' && dictionary.checkWordIfInDictionary(word)) {
+            return await interaction.reply({
+                content: `Cụm từ này đã có trong từ điển của Bot`,
+                ephemeral: true
+            })
+        }
+
+        await interaction.reply({
+            content: `Đã gửi yêu cầu ${getActionWord(type)} từ **${word}**`,
+            ephemeral: true
+        })
+
+        const acceptButton = new ButtonBuilder()
+            .setCustomId('accept')
+            .setLabel('Đồng ý')
+            .setStyle(ButtonStyle.Success)
+
+        const declineButton = new ButtonBuilder()
+            .setCustomId('decline')
+            .setLabel('Từ chối')
+            .setStyle(ButtonStyle.Danger)
+
+        const row = new ActionRowBuilder()
+            .addComponents(acceptButton, declineButton)
+
+        const wordData = {
+            word,
+            reason,
+            type,
+            user: interaction.user.username,
+            guildName: interaction.guild.name,
+            guildId: interaction.guildId,
+            guildIcon: interaction.guild.iconURL({ dynamic: true })
+        }
+
+        const msg = await client.channels.cache.get(REPORT_CHANNEL).send({
+            embeds: [reportEmbed(wordData)],
+            components: [row]
+        })
+
+        const filter = i => i.customId === 'accept' || i.customId === 'decline'
+
+        const collection = msg.createMessageComponentCollector({filter})
+
+        collection.on('collect', async i => {
+
+            let status
+
+            if (i.customId === 'accept') {
+                status = 1
+                applyApprovedWord(type, word)
+            } else {
+                status = 2
+            }
+
+            await sendDmToReporter(client, interaction.user.id, [
+                messageEmbed(`Từ \`${word}\` của bạn đã ${(status === 1) ? (type === 'add' ? 'được đồng ý thêm vào từ điển' : 'được đồng ý gỡ bỏ') : (type === 'add' ? 'bị từ chối thêm vào từ điển' : 'bị từ chối gỡ bỏ')} bởi mod \`${i.member.displayName}\``)
+            ])
+
+            await msg.edit({
+                embeds: [reportEmbed(wordData, status)],
+                components: []
+            })
+            return
+        })
+
     }
+
 }

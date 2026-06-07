@@ -16,7 +16,7 @@ const helpEmbed = () => new EmbedBuilder()
         },
         {
             name: 'Dừng lượt chơi',
-            value: 'Dùng lệnh `!stop` trong kênh chơi nối từ, lượt mới sẽ tự động bắt đầu!',
+            value: 'Dùng lệnh `!stop` trong kênh chơi nối từ, bất cứ member nào trong server cũng có thể dùng!',
             inline: true
         },
         {
@@ -36,7 +36,7 @@ const helpEmbed = () => new EmbedBuilder()
         },
         {
             name: 'Report từ sai trong từ điển',
-            value: 'Dùng lệnh slash `/report <từ> [lý do]`',
+            value: 'Dùng lệnh slash `/report <từ> [lý do]`, bất cứ member nào trong server cũng có thể dùng',
             inline: true
         },
         {
