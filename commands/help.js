@@ -40,6 +40,11 @@ const helpEmbed = () => new EmbedBuilder()
             inline: true
         },
         {
+            name: 'Quản lý blacklist',
+            value: 'Dùng lệnh slash `/unblacklist <từ> [check|remove]` trong kênh báo cáo',
+            inline: true
+        },
+        {
             name: 'Xem thông tin server, check Premium',
             value: 'Dùng lệnh slash `/server`',
             inline: true

@@ -73,11 +73,29 @@ const addWordToDictionary = (word) => {
     fs.writeFileSync(officalWordsPath, dic.join('\n'))
 }
 
+/**
+ *
+ * @param {String} word
+ * @returns {Boolean}
+ */
+const removeWordFromReportList = (word) => {
+    const nextReportDic = reportDic.filter(item => item !== word)
+
+    if (nextReportDic.length === reportDic.length) {
+        return false
+    }
+
+    reportDic = nextReportDic
+    fs.writeFileSync(reportWordsPath, reportDic.join('\n'))
+    return true
+}
+
 module.exports = {
     checkWordIfInDictionary,
     countWordInDictionary,
     getReportWords,
     checkWordIfInReportDictionary,
     addWordToReportList,
-    addWordToDictionary
+    addWordToDictionary,
+    removeWordFromReportList
 }
