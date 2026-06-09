@@ -3,9 +3,11 @@ const path = require('path')
 
 const officalWordsPath = path.resolve(__dirname, '../data/official-words.txt')
 const reportWordsPath = path.resolve(__dirname, '../data/report-words.txt')
+const contributeWordsPath = path.resolve(__dirname, '../data/contribute-words.txt')
 
 let dic = []
 let reportDic = []
+let contributeDic = []
 
 try {
     const dicRead = fs.readFileSync(officalWordsPath, 'utf-8')
@@ -19,6 +21,13 @@ try {
     reportDic = reportDicRead.toLowerCase().split('\n')
 } catch (err) {
     console.error(`Error reading file ${reportWordsPath}:`, err)
+}
+
+try {
+    const contributeDicRead = fs.readFileSync(contributeWordsPath, 'utf-8')
+    contributeDic = contributeDicRead.toLowerCase().split('\n')
+} catch (err) {
+    console.error(`Error reading file ${contributeWordsPath}:`, err)
 }
 
 /**
@@ -70,7 +79,9 @@ const addWordToReportList = (word) => {
  */
 const addWordToDictionary = (word) => {
     dic.push(word)
+    contributeDic.push(word)
     fs.writeFileSync(officalWordsPath, dic.join('\n'))
+    fs.writeFileSync(contributeWordsPath, contributeDic.join('\n'))
 }
 
 /**
