@@ -1,38 +1,14 @@
 const { SlashCommandBuilder, EmbedBuilder, Client, InteractionCollector } = require('discord.js')
-const fs = require('fs')
-const path = require('path')
-
-const premiumGuildsPath = path.resolve(__dirname, '../data/premium-guilds.txt')
+const premium = require('../repos/premium')
 
 /**
- * 
- * @returns {Array} Premium guild list.
- */
-const getPremiumList = () => {
-    let premiumList = []
-    try {
-        const premiumData = fs.readFileSync(premiumGuildsPath, 'utf-8')
-        const cleanedPremiumData = premiumData.replace('/\r/g', '').split('\n')
-        premiumList = cleanedPremiumData
-            .filter(line => line.trim() !== '')
-            .map(line => Number(line.trim()))
-    } catch (err) {
-        console.log('Error when fetch premium list, err: ' + err)
-    }
-    return premiumList
-}
-
-/**
- * 
- * @param {InteractionCollector} interaction 
+ *
+ * @param {InteractionCollector} interaction
  * @param {Client} client
- * @returns 
+ * @returns
  */
 const serverEmbed = async (interaction, client) => {
     const guild = interaction.member.guild
-    const owner = await guild.fetchOwner()
-    const pList = getPremiumList()
-    console.log(pList)
     return new EmbedBuilder()
         .setColor(13250094)
         //.setTitle(guild.name)
@@ -64,7 +40,7 @@ const serverEmbed = async (interaction, client) => {
             },
             {
                 name: ':star: PhoBo Premium',
-                value: (pList.includes(Number(interaction.guildId))) ? ':white_check_mark: Đã kích hoạt' : ':closed_lock_with_key: Chưa kích hoạt',
+                value: premium.isPremium(interaction.guildId) ? ':white_check_mark: Đã kích hoạt' : ':closed_lock_with_key: Chưa kích hoạt',
                 inline: true
             }
         )

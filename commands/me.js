@@ -1,41 +1,21 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js')
-const fs = require('fs')
-const path = require('path')
-
-const rankingPath = path.resolve(__dirname, '../data/ranking.json')
+const ranking = require('../repos/ranking')
 
 /**
- * 
- * @param {Number} userId 
- * @param {Number} guildId 
- * @returns {Object}
+ *
+ * @param {String} userId
+ * @param {String} guildId
+ * @returns {Object|undefined}
  */
 const getDataOfUser = (userId, guildId) => {
-    const rankData = require(rankingPath)
-    if (rankData[guildId] === undefined) {
-        console.log('1')
-        return {}
-    } else {
-        if (rankData[guildId].players.length === 0) {
-            console.log('2')
-            return {}
-        } else {
-            for (let i = 0; i < rankData[guildId].players.length; i++) {
-                if (rankData[guildId].players[i].id === userId) {
-                    return rankData[guildId].players[i]
-                }
-            }
-        return {}
-        }
-    }
+    return ranking.getUser(guildId, userId)
 }
 
 const embedData = (userId, guildId) => {
     const dataUser = getDataOfUser(userId, guildId)
-    console.log(dataUser)
-    if (dataUser == {}) {
+    if (!dataUser) {
         return [{
-            name: '',
+            name: 'Hồ sơ trống',
             value: 'Bạn chưa chơi nối từ ở server này!'
         }]
     } else {
@@ -67,7 +47,6 @@ module.exports = {
         .setDescription('Xem thống kê nối từ của bạn'),
 
         async execute(interaction, client) {
-            //console.log(interaction.member)
             await interaction.reply({
                 embeds: [meEmbed(interaction)]
             })

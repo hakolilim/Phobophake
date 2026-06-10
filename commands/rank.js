@@ -1,36 +1,32 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js')
-const fs = require('fs')
-const path = require('path')
-
-const rankingPath = path.resolve(__dirname, '../data/ranking.json')
+const ranking = require('../repos/ranking')
 
 /**
- * 
- * @param {Number} guildId 
+ *
+ * @param {String} guildId
  * @returns {Array}
  */
 const getRankOfServer = (guildId) => {
-    const rankData = require(rankingPath)
-    if (rankData[guildId] === undefined) {
+    const players = ranking.getGuildPlayers(guildId)
+    if (players.length === 0) {
         return []
-    } else {
-        return rankData[guildId].players.length === 0 ? [] : rankData[guildId].players.sort((a, b) => {
-            if (b.win !== a.win) {
-                return b.win - a.win
-            }
-            const aAccuracy = a.total === 0 ? 0 : a.true / a.total;
-            const bAccuracy = b.total === 0 ? 0 : b.true / b.total;
-            if (bAccuracy !== aAccuracy) {
-                return bAccuracy - aAccuracy;
-            }
-            return b.true - a.true;
-        })
     }
+    return [...players].sort((a, b) => {
+        if (b.win !== a.win) {
+            return b.win - a.win
+        }
+        const aAccuracy = a.total === 0 ? 0 : a.true / a.total;
+        const bAccuracy = b.total === 0 ? 0 : b.true / b.total;
+        if (bAccuracy !== aAccuracy) {
+            return bAccuracy - aAccuracy;
+        }
+        return b.true - a.true;
+    })
 }
 
 /**
- * 
- * @param {Number} guildId 
+ *
+ * @param {String} guildId
  * @returns {Array}
  */
 const embedData = (guildId) => {
@@ -67,7 +63,7 @@ const embedData = (guildId) => {
         }
         return embedd
     }
-    
+
 }
 
 const rankEmbed = (interaction) => new EmbedBuilder()
@@ -84,7 +80,6 @@ module.exports = {
         .setDescription('Xem bảng xếp hạng nối từ'),
 
         async execute(interaction, client) {
-            const rankData = require(rankingPath)
             await interaction.reply({
                 embeds: [rankEmbed(interaction)]
             })

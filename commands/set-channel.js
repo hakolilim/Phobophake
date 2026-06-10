@@ -1,7 +1,5 @@
 const { SlashCommandBuilder, ChannelType, PermissionsBitField } = require('discord.js');
-const fs = require('fs')
-const dataChannel = require('../data/data.json')
-const path = require('path')
+const config = require('../repos/config')
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -19,7 +17,6 @@ module.exports = {
                 ephemeral: true
             })
         } else {
-            let guild = interaction.member.guild
             let channel = interaction.options.getChannel('channel')
 
             // check send permission for bot
@@ -47,11 +44,7 @@ module.exports = {
                 return
             }
 
-            dataChannel[interaction.guildId] = {
-                channel: channel.id
-            }
-
-            fs.writeFileSync(path.resolve(__dirname, '../data/data.json'), JSON.stringify(dataChannel))
+            await config.setChannel(interaction.guildId, channel.id)
 
             await interaction.reply({
                 content: `Bạn đã chọn kênh **${channel.name}** làm kênh chơi nối từ của máy chủ **${interaction.member.guild.name}**!`,

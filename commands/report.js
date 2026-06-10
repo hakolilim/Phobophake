@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Client, ButtonStyle } = require('discord.js')
 require('dotenv').config()
 const REPORT_CHANNEL = process.env.REPORT_CHANNEL || ''
-const dictionary = require('../utils/dictionary')
+const dictionary = require('../repos/words')
 
 const messageEmbed = (msg) => {
     return new EmbedBuilder()
@@ -68,16 +68,16 @@ const getActionWord = (type) => {
     return type === 'add' ? 'thêm từ' : 'báo cáo'
 }
 
-const applyApprovedWord = (type, word) => {
+const applyApprovedWord = async (type, word) => {
     if (type === 'add') {
         if (global.dicData && !global.dicData.includes(word)) {
             global.dicData.push(word)
         }
-        dictionary.addWordToDictionary(word)
+        await dictionary.addWordToDictionary(word)
         return
     }
 
-    dictionary.addWordToReportList(word)
+    await dictionary.addWordToReportList(word)
 }
 
 const sendDmToReporter = async (client, userId, embeds) => {
@@ -204,7 +204,7 @@ module.exports = {
 
             if (i.customId === 'accept') {
                 status = 1
-                applyApprovedWord(type, word)
+                await applyApprovedWord(type, word)
             } else {
                 status = 2
             }

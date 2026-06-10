@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, Client, PermissionsBitField, EmbedBuilder } = require('discord.js')
 require('dotenv').config()
 const REPORT_CHANNEL = process.env.REPORT_CHANNEL || ''
-const dictionary = require('../utils/dictionary')
+const dictionary = require('../repos/words')
 
 const normalizeWord = (word) => {
     const tu = word.trim().toLowerCase()
@@ -56,16 +56,6 @@ const ensureManageGuild = async (interaction) => {
     }
 
     return true
-}
-
-const refreshRuntimeDictionary = (word) => {
-    if (!global.dicData) {
-        global.dicData = []
-    }
-
-    if (!global.dicData.includes(word)) {
-        global.dicData.push(word)
-    }
 }
 
 module.exports = {
@@ -135,15 +125,13 @@ module.exports = {
             })
         }
 
-        const removed = dictionary.removeWordFromReportList(word)
+        const removed = await dictionary.removeWordFromReportList(word)
         if (!removed) {
             return await interaction.reply({
                 content: `Không thể gỡ **${word}** khỏi blacklist.`,
                 ephemeral: true
             })
         }
-
-        refreshRuntimeDictionary(word)
 
         await interaction.reply({
             embeds: [resultEmbed(

@@ -2,30 +2,33 @@
 
 ## Tổng quan
 
-Đây là một Discord bot tiếng Việt cho trò chơi nối từ (word-chain game). Bot được xây dựng với Node.js + Discord.js 14, lưu trữ toàn bộ dữ liệu dạng file JSON/TXT trong folder `data/` mà không sử dụng database chính thức.
+Đây là một Discord bot tiếng Việt cho trò chơi nối từ (word-chain game). Bot được xây dựng với Node.js + Discord.js 14, lưu trữ toàn bộ dữ liệu trên **Supabase (Postgres)** để nhiều VPS có thể dùng chung một database (mô hình active–standby).
 
 Kiến trúc cơ bản:
 
-- `bot.js` là entrypoint, chứa phần lớn logic game và xử lý `messageCreate`, `interactionCreate`
+- `bot.js` là entrypoint, chứa phần lớn logic game và xử lý `messageCreate`, `interactionCreate`. Lúc khởi động chạy `bootstrap()` nạp toàn bộ state từ Supabase vào RAM rồi mới `client.login()`.
 - `commands/` chứa các slash command (`/help`, `/stats`, `/rank`, `/me`, `/server`, `/report`, `/set-channel`, `/unblacklist`, `/ping`)
 - `events/` chứa event handler, hiện tại chỉ có `ready.js` để thiết lập trạng thái bot
 - `modules/sync_commands.js` đồng bộ slash commands với Discord khi bot khởi động
-- `utils/` chứa các hàm hỗ trợ: `dictionary.js` (quản lý từ điển), `stats.js` (quản lý thống kê), `channel.js` (cấu hình kênh)
-- `data/` chứa trạng thái runtime của bot dưới dạng file
+- `db/supabase.js` khởi tạo Supabase client (singleton) từ `SUPABASE_URL` + `SUPABASE_KEY`
+- `repos/` là tầng truy cập dữ liệu (data access layer), mỗi file quản lý 1 nhóm dữ liệu với cache RAM + write-through xuống Supabase: `words.js`, `config.js`, `gameState.js`, `ranking.js`, `stats.js`, `premium.js`
+- `supabase/schema.sql` chứa DDL các bảng, chạy 1 lần trong Supabase SQL Editor
 
-## Cấu trúc dữ liệu (`data/` folder)
+## Kiến trúc dữ liệu (in-memory cache + write-through)
 
-- `data.json`: cấu hình kênh nối từ theo guild ID
-- `word-data.json`: trạng thái ván hiện tại theo channel ID (running status, từ đã nối, người chơi hiện tại)
-- `ranking.json`: dữ liệu bảng xếp hạng mỗi server (win count, total count, số từ đúng)
-- `query.txt`: counter lượng query/lookup từ điển
-- `word-played.txt`: counter lượng từ đã nối
-- `round-played.txt`: counter lượng ván đã diễn ra
-- `words.txt`: từ điển chính tải từ GitHub (undertheseanlp/dictionary)
-- `contribute-words.txt`: từ được đóng góp từ cộng đồng (từ lvdat/phobo-contribute-words)
-- `official-words.txt`: tập hợp từ điển chính = `words.txt` + `contribute-words.txt` (loại trừ từ bị report)
-- `report-words.txt`: danh sách từ bị report và được chấp nhận (blacklist động)
-- `premium-guilds.txt`: danh sách guild có Premium (hiện chưa triển khai logic)
+Vì chạy active–standby (mỗi lúc chỉ 1 instance), mỗi repo nạp toàn bộ dữ liệu từ Supabase vào RAM lúc khởi động (gameplay đọc sync nhanh), và mọi mutation cập nhật **cả cache RAM lẫn Supabase**. Khi failover, VPS standby khởi động lại sẽ nạp đầy đủ state từ Supabase.
+
+Các bảng Supabase (xem `supabase/schema.sql`):
+
+- `words` (PK `word`): từ điển chính, seed tự động từ GitHub ở lần chạy đầu nếu rỗng. Quản lý bởi `repos/words.js`.
+- `report_words` (PK `word`): blacklist động (từ bị report được chấp nhận). Quản lý bởi `repos/words.js`.
+- `guild_config` (PK `guild_id`, cột `channel_id`): cấu hình kênh nối từ. Quản lý bởi `repos/config.js`.
+- `game_state` (PK `channel_id`): trạng thái ván hiện tại (`running`, `current_player_id/name`, `words` jsonb). Quản lý bởi `repos/gameState.js`.
+- `rankings` (PK `guild_id,user_id`): BXH mỗi server. Cột `true_count` map sang thuộc tính `.true` trong RAM (vì `true` là từ khóa SQL). Quản lý bởi `repos/ranking.js`.
+- `global_stats` (PK `key`): 3 counter `query`, `word_played`, `round_played`. Quản lý bởi `repos/stats.js`.
+- `premium_guilds` (PK `guild_id`): danh sách guild Premium. Quản lý bởi `repos/premium.js`.
+
+`global.dicData` vẫn là từ điển runtime dùng trong gameplay = `words − report_words`, được build 1 lần khi `words.loadDictionary()` và cập nhật mỗi khi thêm/gỡ blacklist (không filter lại mỗi message như trước).
 
 ## Luồng game nối từ
 
@@ -40,31 +43,33 @@ Trò chơi được kích hoạt bằng lệnh prefix:
 1. Từ phải có chính xác 2 tiếng (2 từ tách bằng space)
 2. Tiếng đầu tiên phải trùng với tiếng cuối cùng của từ trước
 3. Từ không được sử dụng lại trong ván hiện tại
-4. Từ phải có trong `official-words.txt` (từ điển chính loại trừ blacklist)
+4. Từ phải có trong bảng `words` và không nằm trong blacklist (`global.dicData`)
 5. Nếu không có từ nào khác có thể nối được, bot tính người nước gần nhất thắng cuộc
 
 **Cập nhật dữ liệu khi chơi:**
 
-- Mỗi từ hợp lệ được thêm vào `word-data.json[channelId].words[]`
+- Mỗi từ hợp lệ: `gameState.recordWord()` thêm vào `game_state.words` và cập nhật người chơi hiện tại
 - `stats.addWordPlayedCount()` tăng counter từ đã nối
-- `ranking.json` được cập nhật: cộng `true` và `total` cho người chơi hiện tại
-- Khi ván kết thúc: `stats.addRoundPlayedCount()`, `ranking.json` cộng `win` cho người thắng
+- `ranking.updateRankingForUser()` cộng `true` và `total` cho người chơi hiện tại
+- Khi ván kết thúc: `stats.addRoundPlayedCount()`, `ranking.updateRankingForUser()` cộng `win` cho người thắng
+
+Lưu ý: mọi hàm mutation của repo đều **async** (write-through xuống Supabase) nên cần `await`.
 
 ## Lệnh `/report`
 
 Lệnh `/report` được dùng cho **cả hai mục đích**:
 
 1. **Báo cáo từ không phù hợp** (`type: 'report'`):
-   - Từ phải có trong `official-words.txt`
-   - Khi được chấp nhận, từ được thêm vào `data/report-words.txt` (blacklist)
-   - Từ trong blacklist sẽ bị loại khỏi gameplay
-   - Sử dụng `dictionary.addWordToReportList(word)` để lưu
+   - Từ phải có trong từ điển (`dictionary.checkWordIfInDictionary`)
+   - Khi được chấp nhận, từ được thêm vào bảng `report_words` (blacklist)
+   - Từ trong blacklist sẽ bị loại khỏi `global.dicData`
+   - Sử dụng `dictionary.addWordToReportList(word)` (async) để lưu
 
 2. **Đề xuất thêm từ mới** (`type: 'add'`):
-   - Từ không được có trong `official-words.txt`
-   - Khi được chấp nhận, từ được thêm vào `data/official-words.txt`
+   - Từ không được có trong từ điển
+   - Khi được chấp nhận, từ được thêm vào bảng `words`
    - Cập nhật `global.dicData` (từ điển runtime)
-   - Sử dụng `dictionary.addWordToDictionary(word)` để lưu
+   - Sử dụng `dictionary.addWordToDictionary(word)` (async) để lưu
 
 Lệnh yêu cầu có `REPORT_CHANNEL` được cấu hình trong `.env`, nơi mods dùng button để chấp nhận/từ chối.
 
@@ -73,7 +78,7 @@ Lệnh yêu cầu có `REPORT_CHANNEL` được cấu hình trong `.env`, nơi m
 Lệnh này chỉ dùng được trong `REPORT_CHANNEL` bởi người có quyền `MANAGE_GUILD`:
 
 - `/unblacklist <word> check` - kiểm tra từ có trong blacklist không
-- `/unblacklist <word> remove` - gỡ từ khỏi blacklist (lưu vào file, cập nhật `global.dicData`)
+- `/unblacklist <word> remove` - gỡ từ khỏi blacklist (xóa khỏi bảng `report_words`, cập nhật `global.dicData`)
 
 ## Các lệnh khác
 
@@ -95,24 +100,26 @@ Bot cần các intent sau:
 
 ## Tải từ điển
 
-**Khởi động:**
+**Khởi động (`repos/words.js` → `loadDictionary()`):**
 
-1. Nếu `data/words.txt` không tồn tại, bot tải từ GitHub: `https://github.com/undertheseanlp/dictionary/raw/master/dictionary/words.txt`
-2. Lọc những từ có 2 tiếng, không chứa dấu gạch/ngoặc
-3. Tải từ đóng góp từ: `https://github.com/lvdat/phobo-contribute-words/raw/main/accepted-words.txt`
-4. Ghi `official-words.txt` = từ điển lọc + từ đóng góp
-5. Loại bỏ những từ trong `report-words.txt` từ gameplay
+1. Nạp toàn bộ bảng `words` từ Supabase qua phân trang `.range()` (PostgREST giới hạn ~1000 row/request)
+2. Nếu bảng `words` rỗng → seed tự động từ GitHub: tải `words.txt` (lọc 2 tiếng, không dấu gạch/ngoặc) + từ đóng góp `accepted-words.txt`, rồi `upsert` theo batch vào bảng `words`
+3. Nạp bảng `report_words` (blacklist)
+4. Build `global.dicData = words − report_words`
 
 **Runtime:**
 
-- `global.dicData` chứa từ điển được dùng trong gameplay (được lọc loại bỏ từ blacklist)
-- `dictionary.getReportWords()` lấy danh sách blacklist từ file
+- `global.dicData` chứa từ điển được dùng trong gameplay (đã loại blacklist sẵn từ lúc load, cập nhật trực tiếp khi thêm/gỡ blacklist — không filter lại mỗi message)
+- `dictionary.getReportWords()` lấy blacklist từ cache RAM
 
 ## Cách chạy
 
 ```bash
 # Cài dependencies
 yarn
+
+# Cấu hình .env: BOT_TOKEN, SUPABASE_URL, SUPABASE_KEY (service_role), REPORT_CHANNEL (tùy chọn)
+# Chạy supabase/schema.sql trong Supabase SQL Editor 1 lần để tạo bảng
 
 # Chạy bot
 yarn start
@@ -122,27 +129,28 @@ node bot
 
 ## Lưu ý khi sửa code
 
-1. **Xử lý file**: Nhiều hàm trong `bot.js` và `utils/` đọc/ghi trực tiếp JSON/TXT bằng `fs.writeFileSync()` và `require()`, vì vậy khi cập nhật dữ liệu phải đảm bảo file được ghi đúng và các module được reload nếu cần.
+1. **Tầng repo**: Mọi đọc/ghi dữ liệu đi qua `repos/*` (cache RAM + write-through Supabase). Không đọc/ghi file `data/` trực tiếp nữa. Hàm getter là sync (đọc cache); hàm mutation là async (cần `await`).
 
-2. **Runtime dictionary**: `global.dicData` là từ điển runtime, được khởi tạo khi bot start và cập nhật khi gọi `/unblacklist remove` hoặc khi `/report` được chấp nhận (type: 'add'). Cần cẩn thận với cache của Node.js khi `require()` JSON files.
+2. **Runtime dictionary**: `global.dicData` là từ điển runtime, khởi tạo trong `words.loadDictionary()` lúc bootstrap và cập nhật khi gọi `/unblacklist remove` hoặc khi `/report` được chấp nhận. Repo `words.js` tự đồng bộ `global.dicData` khi thêm/gỡ blacklist.
 
 3. **Slash commands sync**: `modules/sync_commands.js` chỉ tạo/xóa/cập nhật commands dựa trên so sánh tên và description. Nếu thay đổi command structure, cần chạy bot để đồng bộ.
 
-4. **Ranking update**: Mỗi lần người chơi gửi từ đúng, `ranking.json` được cập nhật trực tiếp. Khi cập nhật logic ranking, cần kiểm tra các nơi gọi `updateRankingForUser()` và `initRankDataForUser()`.
+4. **Ranking update**: Mỗi lần người chơi gửi từ đúng, `repos/ranking.js` cập nhật cache RAM + upsert vào bảng `rankings`. Khi cập nhật logic ranking, cần kiểm tra các nơi gọi `updateRankingForUser()` và `initRankDataForUser()`. Lưu ý cột DB `true_count` ↔ thuộc tính `.true` trong RAM.
 
-5. **Stats tracking**: Query counter được tăng liên tục khi kiểm tra từ điển để theo dõi hiệu năng. Khi thay đổi logic kiểm tra từ, có thể ảnh hưởng đến query counter.
+5. **Stats tracking**: Query counter tăng hàng nghìn/lượt nên được tích trong RAM và flush xuống Supabase định kỳ (mỗi 60s + lúc SIGINT/SIGTERM) thay vì ghi mỗi message. `word_played`/`round_played` ghi ngay vì ít. Khi thay đổi logic kiểm tra từ, có thể ảnh hưởng query counter.
 
 6. **Report/Add channels**: Nếu `REPORT_CHANNEL` không cấu hình trong `.env`, lệnh `/report` và `/unblacklist` sẽ báo lỗi. Lệnh `/unblacklist` chỉ dùng được trong report channel cụ thể.
 
-7. **Blacklist filtering**: Mỗi lần `messageCreate`, danh sách blacklist được load từ file và lọc khỏi `global.dicData`. Nếu có nhiều tin nhắn cùng lúc, điều này có thể gây hiệu suất kém. Cân nhắc cache nếu cần optimize.
+7. **Failover (active–standby)**: Mỗi lúc chỉ chạy 1 instance. Khi chuyển VPS, instance mới `bootstrap()` nạp lại toàn bộ state từ Supabase. Không chạy đồng thời nhiều instance vì cache RAM của chúng sẽ không đồng bộ với nhau (chỉ đồng bộ qua DB lúc khởi động).
 
 8. **Múi giờ**: Nếu cần thêm timestamp, `moment-timezone` đã có trong dependencies.
 
 ## Dependencies chính
 
 - `discord.js@14.14.1` - Discord API client
+- `@supabase/supabase-js` - Supabase (Postgres) client
 - `dotenv` - load `.env`
-- `axios` - fetch từ GitHub
+- `axios` - fetch từ điển từ GitHub (seed lần đầu)
 - `moment-timezone` - handle time (nếu cần)
 - Chú ý: `mongodb` và `mongoose` có trong dependencies nhưng không được sử dụng trong code hiện tại
 
@@ -150,6 +158,8 @@ node bot
 
 ```
 BOT_TOKEN=...          # Token của Discord bot (bắt buộc)
+SUPABASE_URL=...       # URL project Supabase (bắt buộc)
+SUPABASE_KEY=...       # Service role key của Supabase (bắt buộc)
 REPORT_CHANNEL=...     # Channel ID để báo cáo từ (tùy chọn)
 CORRECT_EMOJI=✅       # Emoji phản hồi từ đúng (mặc định: ✅)
 WRONG_EMOJI=❌         # Emoji phản hồi từ sai (mặc định: ❌)
