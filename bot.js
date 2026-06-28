@@ -296,6 +296,16 @@ client.on('messageCreate', async message => {
             await botMsg.react(CORRECT_EMOJI)
 
             console.log(`[${message.guild.name}][${message.channel.name}][#${words_.length + 1}] (bot) ${nextWord}`)
+
+            // bot vừa nối: nếu không còn từ nào nối tiếp được thì bot thắng, tự dừng và bắt đầu vòng mới
+            const afterBotWords = findAnswersInDb(nextWord)
+            if (afterBotWords.length === 0) {
+                sendMessageToChannel(`Bot đã chiến thắng sau ${words_.length} lượt! Lượt mới đã bắt đầu!`, configChannel)
+                await stats.addRoundPlayedCount()
+                await gameState.initWordData(configChannel)
+                await startGame(configChannel)
+                return
+            }
         }
     } catch (err) {
         console.error('[ERROR] messageCreate:', err)
