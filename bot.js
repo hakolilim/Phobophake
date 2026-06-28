@@ -195,27 +195,26 @@ client.on('messageCreate', async message => {
         }
 
         /**
-         *
+         * Trả về danh sách các từ chưa dùng có thể nối tiếp `word`.
          * @param {String} word
-         * @returns {Boolean}
+         * @returns {String[]}
          */
-        const checkIfHaveAnswerInDb = (word) => {
+        const findAnswersInDb = (word) => {
             let w = word.split(/ +/)
             let lc = w[w.length - 1]
+            let answers = []
             for (let i = 0; i < global.dicData.length; i++) {
                 queryCount++
                 let temp = global.dicData[i]
                 let tempw = temp.split(/ +/)
                 if (tempw.length > 1 && tempw[0] === lc && temp !== word) {
-                    // detect word
                     if (checkIfWordUsed(temp)) {
-                        // if word is used, cancel this loop round.
                         continue
                     }
-                    return true
+                    answers.push(temp)
                 }
             }
-            return false
+            return answers
         }
 
         // end function
@@ -274,13 +273,29 @@ client.on('messageCreate', async message => {
 
         console.log(`[${message.guild.name}][${message.channel.name}][#${words_.length}] ${tu}`)
 
-        if (!checkIfHaveAnswerInDb(tu)) {
-            sendMessageToChannel(`${message.author.displayName} đã chiến thắng sau ${words_.length - 1} lượt! Lượt mới đã bắt đầu!`, configChannel)
+        const nextWords = findAnswersInDb(tu)
+
+        if (nextWords.length === 0) {
+            const reason = guildConfig.botMode === true ? 'Bot đã bí từ! ' : ''
+            sendMessageToChannel(`${reason}${message.author.displayName} đã chiến thắng sau ${words_.length - 1} lượt! Lượt mới đã bắt đầu!`, configChannel)
             await ranking.updateRankingForUser(message.guildId, message.author.id, 1, 0, 0)
             await stats.addRoundPlayedCount()
             await gameState.initWordData(configChannel)
             await startGame(configChannel)
             return
+        }
+
+        // BOT MODE: bot tự nối tiếp từ của thành viên bằng 1 từ ngẫu nhiên
+        if (guildConfig.botMode === true) {
+            const nextWord = nextWords[Math.floor(Math.random() * nextWords.length)]
+            await gameState.recordWord(configChannel, nextWord, client.user.id, client.user.username)
+            await stats.addWordPlayedCount()
+
+            const botChannel = client.channels.cache.get(configChannel)
+            const botMsg = await botChannel.send({ content: `**${nextWord}**`, flags: [4096] })
+            await botMsg.react(CORRECT_EMOJI)
+
+            console.log(`[${message.guild.name}][${message.channel.name}][#${words_.length + 1}] (bot) ${nextWord}`)
         }
     } catch (err) {
         console.error('[ERROR] messageCreate:', err)

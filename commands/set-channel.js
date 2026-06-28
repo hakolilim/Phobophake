@@ -9,7 +9,11 @@ module.exports = {
             option.setName('channel')
                 .setDescription('Kênh chơi nối từ')
                 .addChannelTypes(ChannelType.GuildText)
-                .setRequired(true)),
+                .setRequired(true))
+        .addBooleanOption(option =>
+            option.setName('bot_mode')
+                .setDescription('Bật chế độ nối từ với bot (bot sẽ cùng nối từ với thành viên)')
+                .setRequired(false)),
     async execute (interaction) {
         if(!interaction.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
             await interaction.reply({
@@ -18,6 +22,7 @@ module.exports = {
             })
         } else {
             let channel = interaction.options.getChannel('channel')
+            let botMode = interaction.options.getBoolean('bot_mode') ?? false
 
             // check send permission for bot
             if (!interaction.member.permissionsIn(channel).has(PermissionsBitField.Flags.ViewChannel)) {
@@ -44,10 +49,10 @@ module.exports = {
                 return
             }
 
-            await config.setChannel(interaction.guildId, channel.id)
+            await config.setChannel(interaction.guildId, channel.id, botMode)
 
             await interaction.reply({
-                content: `Bạn đã chọn kênh **${channel.name}** làm kênh chơi nối từ của máy chủ **${interaction.member.guild.name}**!`,
+                content: `Bạn đã chọn kênh **${channel.name}** làm kênh chơi nối từ của máy chủ **${interaction.member.guild.name}**!${botMode ? ' Chế độ nối từ với bot đã được **bật**.' : ''}`,
                 flags: [4096]
             })
 

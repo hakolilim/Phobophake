@@ -12,8 +12,12 @@ create table if not exists report_words (
 
 create table if not exists guild_config (
     guild_id   text primary key,
-    channel_id text
+    channel_id text,
+    bot_mode   boolean not null default false
 );
+
+-- Nếu bảng đã tồn tại từ trước, thêm cột bot_mode:
+alter table guild_config add column if not exists bot_mode boolean not null default false;
 
 create table if not exists game_state (
     channel_id          text primary key,
