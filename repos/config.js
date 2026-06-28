@@ -1,6 +1,6 @@
 const supabase = require('../db/supabase')
 
-// cache RAM: { [guildId]: { channel: channelId, botMode: bool } }
+// cache RAM keyed by channelId: { [channelId]: { guildId, channel, botMode } }
 let configCache = {}
 
 /**
@@ -15,29 +15,35 @@ const loadConfig = async () => {
     }
     configCache = {}
     for (const row of data) {
-        configCache[row.guild_id] = { channel: row.channel_id, botMode: row.bot_mode === true }
+        configCache[row.channel_id] = {
+            guildId: row.guild_id,
+            channel: row.channel_id,
+            botMode: row.bot_mode === true
+        }
     }
-    console.log(`[OK] Nạp cấu hình kênh cho ${data.length} máy chủ.`)
+    console.log(`[OK] Nạp cấu hình ${data.length} kênh nối từ.`)
 }
 
 /**
- * @param {String} guildId
- * @returns {{channel: String}|undefined}
+ * Lấy cấu hình của 1 kênh.
+ * @param {String} channelId
+ * @returns {{guildId: String, channel: String, botMode: Boolean}|undefined}
  */
-const getConfig = (guildId) => {
-    return configCache[guildId]
+const getConfig = (channelId) => {
+    return configCache[channelId]
 }
 
 /**
+ * Đăng ký 1 kênh nối từ. Một guild có thể có nhiều kênh.
  * @param {String} guildId
  * @param {String} channelId
  * @param {Boolean} botMode
  */
 const setChannel = async (guildId, channelId, botMode = false) => {
-    configCache[guildId] = { channel: channelId, botMode }
+    configCache[channelId] = { guildId, channel: channelId, botMode }
     const { error } = await supabase
         .from('guild_config')
-        .upsert({ guild_id: guildId, channel_id: channelId, bot_mode: botMode }, { onConflict: 'guild_id' })
+        .upsert({ guild_id: guildId, channel_id: channelId, bot_mode: botMode }, { onConflict: 'channel_id' })
     if (error) {
         console.error('[ERROR] setChannel:', error.message)
     }

@@ -10,14 +10,22 @@ create table if not exists report_words (
     word text primary key
 );
 
+-- Mỗi hàng = 1 kênh nối từ. Một guild có thể có nhiều kênh active đồng thời.
 create table if not exists guild_config (
-    guild_id   text primary key,
-    channel_id text,
+    channel_id text primary key,
+    guild_id   text not null,
     bot_mode   boolean not null default false
 );
 
+create index if not exists guild_config_guild_idx on guild_config (guild_id);
+
 -- Nếu bảng đã tồn tại từ trước, thêm cột bot_mode:
 alter table guild_config add column if not exists bot_mode boolean not null default false;
+
+-- Migration từ mô hình cũ (PK = guild_id, 1 kênh/guild) sang mới (PK = channel_id):
+-- Chạy 1 lần nếu bảng cũ vẫn còn PK trên guild_id.
+-- alter table guild_config drop constraint guild_config_pkey;
+-- alter table guild_config add primary key (channel_id);
 
 create table if not exists game_state (
     channel_id          text primary key,

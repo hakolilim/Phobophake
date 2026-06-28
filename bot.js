@@ -112,23 +112,12 @@ client.on('messageCreate', async message => {
 
         // end function
 
-        let guild = message.guild
-        let channel = message.channel
-
-        const guildConfig = config.getConfig(guild.id)
-        if (guildConfig === undefined || guildConfig.channel === undefined) {
-            // detect channel not config
-            queryCount++
-            return
-        }
-        let configChannel = guildConfig.channel
-
-        // FIRST LOAD
+        // FIRST LOAD — cho phép `?phobo set` ở bất kỳ kênh nào để đăng ký kênh đó
         if (message.content.startsWith(PREFIX)) {
             let arg = message.content.trim().split(/\s+/).filter(Boolean)[1]
             console.log(`[${message.guild.name}][${message.channel.name}] ${message.author.displayName} used prefix command [${arg ? arg : 'no action'}]`)
             if (arg === 'set') {
-                if (!message.member.permissionsIn(configChannel).has(PermissionsBitField.Flags.ManageGuild)) {
+                if (!message.member.permissionsIn(message.channelId).has(PermissionsBitField.Flags.ManageGuild)) {
                     return message.reply({
                         content: 'Bạn cần có quyền `MANAGE_GUILD` để dùng lệnh này',
                         ephemeral: true
@@ -143,7 +132,13 @@ client.on('messageCreate', async message => {
             }
         }
 
-        if (message.channel.id !== configChannel) return
+        const guildConfig = config.getConfig(message.channel.id)
+        if (guildConfig === undefined || guildConfig.channel === undefined) {
+            // kênh này chưa được cấu hình làm kênh nối từ
+            queryCount++
+            return
+        }
+        let configChannel = guildConfig.channel
 
         if (!gameState.exists(configChannel)) {
             await gameState.initWordData(configChannel)
