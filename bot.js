@@ -8,6 +8,8 @@ const gameState = require('./repos/gameState')
 const ranking = require('./repos/ranking')
 const stats = require('./repos/stats')
 const premium = require('./repos/premium')
+const { startWebServer } = require('./web/server')
+
 
 const client = new Client({
     intents: [
@@ -336,8 +338,12 @@ client.on('interactionCreate', async (interaction) => {
 
 // Nạp toàn bộ state từ Supabase vào RAM rồi mới đăng nhập.
 async function bootstrap() {
+    // Mở HTTP sớm để Render health check không timeout khi đang nạp dữ liệu.
+    startWebServer(client)
+
     console.log('[WARNING] Khởi động: nạp dữ liệu từ Supabase...')
     await words.loadDictionary()
+
     await config.loadConfig()
     await gameState.loadGameStates()
     await ranking.loadRankings()

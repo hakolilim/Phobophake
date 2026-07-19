@@ -40,13 +40,17 @@ REPORT_CHANNEL=...     # Channel ID để báo cáo từ (tùy chọn)
 CORRECT_EMOJI=✅       # Emoji phản hồi từ đúng (tùy chọn, mặc định ✅)
 WRONG_EMOJI=❌         # Emoji phản hồi từ sai (tùy chọn, mặc định ❌)
 ```
+- (Tùy chọn) `PORT=3000` — cổng HTTP cho web status (local). Trên Render, cổng được gán tự động qua `PORT`.
 - Chạy BOT:
 ```bash
 node bot
 # hoặc
 yarn start
 ```
+> Process sẽ vừa chạy Discord bot vừa mở web server (`/` status, `/health`, `/api/status`).
+
 > Lần chạy đầu tiên, nếu bảng `words` còn rỗng, BOT sẽ **tự tải từ điển từ GitHub và nạp (~74k từ) vào Supabase**. Quá trình này chỉ diễn ra một lần; các lần sau BOT đọc thẳng từ database.
+
 
 > Dữ liệu nay nằm hoàn toàn trên Supabase — không cần backup thủ công thư mục `data/` nữa. Việc backup/khôi phục được thực hiện qua chính Supabase.
 - Tạo link mời BOT vào máy chủ
@@ -75,7 +79,29 @@ yarn start
 </details>
 
 
+## Deploy trên Render (free)
+
+Render free yêu cầu process mở HTTP port. Bot đã tích hợp Express cho việc này.
+
+1. Push repo lên GitHub, tạo **Web Service** trên [render.com](https://render.com) trỏ vào repo.
+2. Cấu hình:
+   - **Runtime:** Node
+   - **Build Command:** `yarn`
+   - **Start Command:** `yarn start`
+   - **Health Check Path:** `/health`
+3. Thêm Environment variables (Dashboard → Environment):
+   - `BOT_TOKEN`, `SUPABASE_URL`, `SUPABASE_KEY` (bắt buộc)
+   - `REPORT_CHANNEL`, `CORRECT_EMOJI`, `WRONG_EMOJI` (tùy chọn)
+   - Không cần set `PORT` — Render tự gán.
+4. Deploy. Khi chạy xong:
+   - `https://<service>.onrender.com/` — trang status (online, servers, uptime, stats)
+   - `https://<service>.onrender.com/health` — `{ "status": "ok" }`
+   - `https://<service>.onrender.com/api/status` — JSON status
+
+> **Lưu ý free tier:** instance có thể sleep sau ~15 phút không traffic → bot Discord cũng offline. Có thể dùng UptimeRobot (hoặc tương tự) ping `/health` mỗi vài phút để giảm sleep. Chỉ chạy **1 instance** (active–standby).
+
 ## Các lệnh của BOT
+
 |          **Lệnh**          |          **Chức năng**          |            **Quyền cần**            |
 |:--------------------------:|:-------------------------------:|:----------------------------------:|
 | /set-channel <channel>     | Cài đặt kênh chơi nối từ        | `MANAGE_GUILD`                     |
