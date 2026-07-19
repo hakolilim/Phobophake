@@ -245,11 +245,12 @@ function escapeHtml(s) {
 
 /**
  * Start Express web server for Render health checks + simple status UI.
- * Call after Discord client.login() so status reflects a connected bot.
+ * Call from events/ready.js after slash commands are synchronized.
  *
  * @param {import('discord.js').Client} client
  * @returns {import('http').Server}
  */
+
 
 function startWebServer(client) {
     const app = express()

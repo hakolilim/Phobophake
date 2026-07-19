@@ -1,10 +1,12 @@
 const synchronizeSlashCommands = require('../modules/sync_commands.js')
 const { ActivityType } = require('discord.js')
-const fs = require('fs')
-const path = require('path')
+const { startWebServer } = require('../web/server')
+
 module.exports = {
     name: 'ready',
+    once: true,
     async execute(client) {
+
         console.log(`Connected as ${client.user.username}`)
         client.user.setActivity(`nối từ | /rank`, { type: ActivityType.Playing })
         client.user.setStatus('idle')
@@ -21,5 +23,10 @@ module.exports = {
             // guildId: "YourDiscordServerOrDeleteThisLine"
         }
         )
+
+        // Mở web sau khi Discord ready + commands synchronized.
+        startWebServer(client)
     }
 }
+
+

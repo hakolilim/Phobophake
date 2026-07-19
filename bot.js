@@ -8,7 +8,7 @@ const gameState = require('./repos/gameState')
 const ranking = require('./repos/ranking')
 const stats = require('./repos/stats')
 const premium = require('./repos/premium')
-const { startWebServer } = require('./web/server')
+
 
 
 const client = new Client({
@@ -353,10 +353,9 @@ async function bootstrap() {
     }, 60 * 1000)
 
     await client.login(process.env.BOT_TOKEN)
-
-    // Discord đã sẵn sàng → mới mở web status (Render health check)
-    startWebServer(client)
+    // Web server được mở trong events/ready.js sau khi sync commands xong.
 }
+
 
 
 // flush stats trước khi thoát để không mất query counter.
