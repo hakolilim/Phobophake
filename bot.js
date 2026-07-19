@@ -338,12 +338,8 @@ client.on('interactionCreate', async (interaction) => {
 
 // Nạp toàn bộ state từ Supabase vào RAM rồi mới đăng nhập.
 async function bootstrap() {
-    // Mở HTTP sớm để Render health check không timeout khi đang nạp dữ liệu.
-    startWebServer(client)
-
     console.log('[WARNING] Khởi động: nạp dữ liệu từ Supabase...')
     await words.loadDictionary()
-
     await config.loadConfig()
     await gameState.loadGameStates()
     await ranking.loadRankings()
@@ -357,7 +353,11 @@ async function bootstrap() {
     }, 60 * 1000)
 
     await client.login(process.env.BOT_TOKEN)
+
+    // Discord đã sẵn sàng → mới mở web status (Render health check)
+    startWebServer(client)
 }
+
 
 // flush stats trước khi thoát để không mất query counter.
 let shuttingDown = false

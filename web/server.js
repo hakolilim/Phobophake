@@ -245,11 +245,12 @@ function escapeHtml(s) {
 
 /**
  * Start Express web server for Render health checks + simple status UI.
- * Call early in bootstrap so PORT is bound before Discord/Supabase finish loading.
+ * Call after Discord client.login() so status reflects a connected bot.
  *
  * @param {import('discord.js').Client} client
  * @returns {import('http').Server}
  */
+
 function startWebServer(client) {
     const app = express()
     const port = Number(process.env.PORT) || 3000

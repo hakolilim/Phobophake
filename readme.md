@@ -47,7 +47,8 @@ node bot
 # hoặc
 yarn start
 ```
-> Process sẽ vừa chạy Discord bot vừa mở web server (`/` status, `/health`, `/api/status`).
+> Process nạp dữ liệu → đăng nhập Discord → rồi mới mở web server (`/` status, `/health`, `/api/status`).
+
 
 > Lần chạy đầu tiên, nếu bảng `words` còn rỗng, BOT sẽ **tự tải từ điển từ GitHub và nạp (~74k từ) vào Supabase**. Quá trình này chỉ diễn ra một lần; các lần sau BOT đọc thẳng từ database.
 
