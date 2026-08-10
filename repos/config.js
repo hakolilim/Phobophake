@@ -49,8 +49,24 @@ const setChannel = async (guildId, channelId, botMode = false) => {
     }
 }
 
+/**
+ * Xoá cấu hình kênh nối từ.
+ * @param {String} channelId
+ */
+const unsetChannel = async (channelId) => {
+    delete configCache[channelId]
+    const { error } = await supabase
+        .from('guild_config')
+        .delete()
+        .eq('channel_id', channelId)
+    if (error) {
+        console.error('[ERROR] unsetChannel:', error.message)
+    }
+}
+
 module.exports = {
     loadConfig,
     getConfig,
-    setChannel
+    setChannel,
+    unsetChannel
 }

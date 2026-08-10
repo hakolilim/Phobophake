@@ -118,6 +118,21 @@ const recordWord = async (channelId, word, playerId, playerName) => {
     await persist(channelId)
 }
 
+/**
+ * Xoá game state của 1 kênh (RAM + DB).
+ * @param {String} channelId
+ */
+const removeGameState = async (channelId) => {
+    delete stateCache[channelId]
+    const { error } = await supabase
+        .from('game_state')
+        .delete()
+        .eq('channel_id', channelId)
+    if (error) {
+        console.error('[ERROR] gameState.removeGameState:', error.message)
+    }
+}
+
 module.exports = {
     loadGameStates,
     getState,
@@ -126,5 +141,6 @@ module.exports = {
     initWordData,
     startGame,
     stopGame,
-    recordWord
+    recordWord,
+    removeGameState
 }

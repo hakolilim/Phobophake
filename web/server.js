@@ -223,7 +223,7 @@ function renderStatusPage(data) {
       <div class="stat"><div class="label">Ngân hàng từ</div><div class="value">${data.stats.dictionaryWords}</div></div>
     </div>
     <p class="footer">
-      <a href="/health">/health</a> · <a href="/api/status">/api/status</a><br />
+      <a href="/health">/health</a> · <a href="/api/status">/api/status</a> · <a href="/suggest">/suggest</a><br />
       Auto-refresh 30s · ${escapeHtml(data.timestamp)}
     </p>
   </main>
@@ -241,6 +241,212 @@ function escapeHtml(s) {
         .replace(/</g, '\x26lt;')
         .replace(/>/g, '\x26gt;')
         .replace(/"/g, '\x26quot;')
+}
+
+/**
+ * Suggest page — nhập từ, xem gợi ý từ nối tiếp.
+ */
+function renderSuggestPage() {
+    return `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Phở Bò — Gợi ý từ nối tiếp</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --card: #1a2332;
+      --text: #e7ecf3;
+      --muted: #8b9bb4;
+      --accent: #f97316;
+      --border: #2a3548;
+      --green: #22c55e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: radial-gradient(1200px 600px at 20% -10%, #1e293b 0%, var(--bg) 55%);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      width: 100%;
+      max-width: 480px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 24px;
+      box-shadow: 0 20px 50px rgba(0,0,0,.35);
+    }
+    h1 {
+      margin: 0 0 6px;
+      font-size: 1.3rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    h1 span { font-size: 1.6rem; }
+    .sub {
+      margin: 0 0 20px;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .form-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .form-row input {
+      flex: 1;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: rgba(0,0,0,.25);
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .form-row input:focus {
+      border-color: var(--accent);
+    }
+    .form-row button {
+      padding: 10px 20px;
+      border-radius: 10px;
+      border: none;
+      background: var(--accent);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .2s;
+    }
+    .form-row button:hover { opacity: 0.85; }
+    .form-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .results {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .word-tag {
+      padding: 6px 12px;
+      border-radius: 8px;
+      background: rgba(34, 197, 94, 0.12);
+      border: 1px solid rgba(34, 197, 94, 0.25);
+      color: var(--green);
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    .empty {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-style: italic;
+    }
+    .error {
+      color: #ef4444;
+      font-size: 0.85rem;
+      margin-bottom: 10px;
+    }
+    .count {
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin-bottom: 10px;
+    }
+    .footer {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-align: center;
+    }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1><span>🍜</span> Gợi ý từ nối tiếp</h1>
+    <p class="sub">Nhập một từ, bot sẽ gợi ý các từ có thể nối tiếp theo</p>
+    <div class="form-row">
+      <input id="wordInput" type="text" placeholder="Ví dụ: phở bò" autofocus />
+      <button id="searchBtn" onclick="search()">Gợi ý</button>
+    </div>
+    <div id="error" class="error" style="display:none"></div>
+    <div id="count" class="count" style="display:none"></div>
+    <div id="results" class="results"></div>
+    <div id="empty" class="empty" style="display:none">Không tìm thấy từ nào có thể nối tiếp.</div>
+    <p class="footer">
+      <a href="/">← Trạng thái bot</a> · <a href="/api/suggest">/api/suggest</a>
+    </p>
+  </main>
+  <script>
+    const input = document.getElementById('wordInput')
+    const btn = document.getElementById('searchBtn')
+    const results = document.getElementById('results')
+    const empty = document.getElementById('empty')
+    const errorEl = document.getElementById('error')
+    const countEl = document.getElementById('count')
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') search()
+    })
+
+    async function search() {
+      const word = input.value.trim()
+      if (!word) {
+        showError('Vui lòng nhập một từ.')
+        return
+      }
+      btn.disabled = true
+      btn.textContent = 'Đang tìm...'
+      hideAll()
+      try {
+        const res = await fetch('/api/suggest?word=' + encodeURIComponent(word))
+        const data = await res.json()
+        if (res.ok) {
+          if (data.suggestions.length === 0) {
+            empty.style.display = 'block'
+          } else {
+            countEl.textContent = 'Tìm thấy ' + data.suggestions.length + ' từ có thể nối tiếp:'
+            countEl.style.display = 'block'
+            results.innerHTML = data.suggestions.map(w => '<span class="word-tag">' + escapeHtml(w) + '</span>').join('')
+          }
+        } else {
+          showError(data.error || 'Lỗi không xác định')
+        }
+      } catch (err) {
+        showError('Không thể kết nối đến máy chủ.')
+      } finally {
+        btn.disabled = false
+        btn.textContent = 'Gợi ý'
+      }
+    }
+
+    function showError(msg) {
+      errorEl.textContent = msg
+      errorEl.style.display = 'block'
+    }
+
+    function hideAll() {
+      errorEl.style.display = 'none'
+      countEl.style.display = 'none'
+      empty.style.display = 'none'
+      results.innerHTML = ''
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, '\x26amp;').replace(/</g, '\x26lt;').replace(/>/g, '\x26gt;').replace(/"/g, '\x26quot;')
+    }
+  </script>
+</body>
+</html>`
 }
 
 /**
@@ -264,8 +470,21 @@ function startWebServer(client) {
         res.json(getStatus(client))
     })
 
+    app.get('/api/suggest', (req, res) => {
+        const word = (req.query.word || '').trim().toLowerCase()
+        if (!word) {
+            return res.status(400).json({ error: 'Missing word parameter' })
+        }
+        const suggestions = dictionary.findNextWords(word)
+        res.json({ word, suggestions })
+    })
+
     app.get('/', (_req, res) => {
         res.type('html').send(renderStatusPage(getStatus(client)))
+    })
+
+    app.get('/suggest', (_req, res) => {
+        res.type('html').send(renderSuggestPage())
     })
 
     const server = app.listen(port, '0.0.0.0', () => {

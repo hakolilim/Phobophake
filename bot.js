@@ -132,6 +132,27 @@ client.on('messageCreate', async message => {
                     })
                 }
             }
+            if (arg === 'unset') {
+                if (!message.member.permissionsIn(message.channelId).has(PermissionsBitField.Flags.ManageGuild)) {
+                    return message.reply({
+                        content: 'Bạn cần có quyền `MANAGE_GUILD` để dùng lệnh này',
+                        ephemeral: true
+                    })
+                }
+                const guildConfig = config.getConfig(message.channelId)
+                if (!guildConfig) {
+                    return message.reply({
+                        content: `Kênh **${message.channel.name}** chưa được cài đặt làm kênh nối từ!`,
+                        ephemeral: true
+                    })
+                }
+                await config.unsetChannel(message.channelId)
+                await gameState.removeGameState(message.channelId)
+                return message.reply({
+                    content: `Đã xoá cài đặt kênh nối từ **${message.channel.name}** của máy chủ **${message.guild.name}**!`,
+                    ephemeral: true
+                })
+            }
         }
 
         const guildConfig = config.getConfig(message.channel.id)

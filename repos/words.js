@@ -192,6 +192,27 @@ const removeWordFromReportList = async (word) => {
     return true
 }
 
+/**
+ * Tìm các từ có thể nối tiếp `word` (chưa dùng trong game).
+ * Dùng cho web gợi ý — stateless, chỉ dựa trên từ điển.
+ * @param {String} word
+ * @returns {String[]}
+ */
+const findNextWords = (word) => {
+    if (!word || !global.dicData) return []
+    const parts = word.split(/ +/)
+    const lastWord = parts[parts.length - 1]
+    const results = []
+    for (let i = 0; i < global.dicData.length; i++) {
+        const temp = global.dicData[i]
+        const tempParts = temp.split(/ +/)
+        if (tempParts.length > 1 && tempParts[0] === lastWord && temp !== word) {
+            results.push(temp)
+        }
+    }
+    return results
+}
+
 module.exports = {
     loadDictionary,
     checkWordIfInDictionary,
@@ -200,5 +221,6 @@ module.exports = {
     checkWordIfInReportDictionary,
     addWordToReportList,
     addWordToDictionary,
-    removeWordFromReportList
+    removeWordFromReportList,
+    findNextWords
 }

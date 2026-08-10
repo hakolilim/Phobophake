@@ -10,6 +10,11 @@ const helpEmbed = () => new EmbedBuilder()
             inline: true
         },
         {
+            name: 'Xoá cài đặt kênh nối từ',
+            value: 'Dùng lệnh slash `/unset-channel <channel>` hoặc dùng `?phobo unset` trong kênh nối từ.',
+            inline: true
+        },
+        {
             name: 'Bắt đầu lượt chơi',
             value: 'Dùng lệnh `!start` trong kênh chơi nối từ',
             inline: true
