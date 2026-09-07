@@ -12,7 +12,7 @@ Toàn bộ dữ liệu (từ điển, cấu hình, bảng xếp hạng, trạng 
 > Tham gia vào Discord Support để được hỗ trợ self-hosted Bot.
 ### Yêu cầu
 - Hệ điều hành: `Linux, MacOS, Windows`, có cài đặt:
-  - `NodeJS >= 18` (BOT được phát triển trên `NodeJS 20.x`)
+  - `NodeJS >= 22` (BOT được phát triển trên `NodeJS 22.x`)
   - Có cài đặt gói `yarn` (`npm i -g yarn`)
   - Git
 - Một project **Supabase** (miễn phí tại [supabase.com](https://supabase.com))

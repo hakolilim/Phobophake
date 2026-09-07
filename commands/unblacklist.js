@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, Client, PermissionsBitField, EmbedBuilder } = require('discord.js')
-require('dotenv').config()
+require('dotenv').config({ quiet: true })
 const REPORT_CHANNEL = process.env.REPORT_CHANNEL || ''
 const dictionary = require('../repos/words')
 

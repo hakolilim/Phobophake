@@ -121,6 +121,8 @@ yarn
 # Cấu hình .env: BOT_TOKEN, SUPABASE_URL, SUPABASE_KEY (service_role), REPORT_CHANNEL (tùy chọn)
 # Chạy supabase/schema.sql trong Supabase SQL Editor 1 lần để tạo bảng
 
+# Yêu cầu Node >= 22
+
 # Chạy bot
 yarn start
 # hoặc
@@ -147,12 +149,14 @@ node bot
 
 ## Dependencies chính
 
-- `discord.js@14.14.1` - Discord API client
-- `@supabase/supabase-js` - Supabase (Postgres) client
-- `dotenv` - load `.env`
-- `axios` - fetch từ điển từ GitHub (seed lần đầu)
-- `moment-timezone` - handle time (nếu cần)
-- Chú ý: `mongodb` và `mongoose` có trong dependencies nhưng không được sử dụng trong code hiện tại
+- `discord.js@14.27.0` - Discord API client
+- `@supabase/supabase-js@2.115.0` - Supabase (Postgres) client
+- `dotenv@17` - load `.env`
+- `axios@1.20` - fetch từ điển từ GitHub (seed lần đầu)
+- `express@5` - web server health check / status
+- `moment-timezone@0.6` - handle time (nếu cần)
+
+Yêu cầu **Node >= 22** (supabase-js 2.110+ cần native WebSocket; `db/supabase.js` không còn transport `ws` thủ công).
 
 ## Biến môi trường
 

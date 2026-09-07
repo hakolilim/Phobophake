@@ -1,6 +1,6 @@
 const fs = require('fs')
 const { Client, GatewayIntentBits, Collection, PermissionsBitField } = require('discord.js')
-require('dotenv').config()
+require('dotenv').config({ quiet: true })
 
 const words = require('./repos/words')
 const config = require('./repos/config')

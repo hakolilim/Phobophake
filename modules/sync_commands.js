@@ -5,7 +5,7 @@ module.exports = async (client, commands, options = { debug: false, guildId: nul
   
     const ready = client.readyAt
       ? await Promise.resolve()
-      : new Promise((resolve) => client.once('ready', resolve))
+      : new Promise((resolve) => client.once('clientReady', resolve))
     await ready
     const currentCommands = await client.application.commands.fetch(
         options.guildId && { guildId: options.guildId }
