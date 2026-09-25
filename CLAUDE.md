@@ -167,4 +167,32 @@ SUPABASE_KEY=...       # Service role key của Supabase (bắt buộc)
 REPORT_CHANNEL=...     # Channel ID để báo cáo từ (tùy chọn)
 CORRECT_EMOJI=✅       # Emoji phản hồi từ đúng (mặc định: ✅)
 WRONG_EMOJI=❌         # Emoji phản hồi từ sai (mặc định: ❌)
+AI_BASE_URL=...        # Base URL OpenAI-compatible API (mặc định: https://api.openai.com/v1)
+AI_API_KEY=...         # API key của provider AI (bắt buộc nếu AI_BASE_URL là OpenAI)
+AI_MODEL=...           # Model name (mặc định: gpt-4o-mini)
+AI_SYSTEM_PROMPT=...   # System prompt mặc định cho /ai (optional)
 ```
+
+## Lệnh `/ai` — Chat với AI
+
+Lệnh `/ai` cho phép người dùng chat với AI trực tiếp trong Discord. Hỗ trợ **bất kỳ OpenAI-compatible API** nào: OpenAI, Gemini (OpenAI adapter), Anthropic (qua proxy), Ollama, vLLM, v.v.
+
+**Cách hoạt động:**
+1. Bot fetch 10 tin nhắn gần nhất trong kênh (trước lệnh `/ai`) làm ngữ cảnh
+2. Tin nhắn của bot trong context sẽ có role `assistant`, còn lại là `user`
+3. Tin nhắn cuối cùng (câu hỏi của người dùng) được gửi cuối cùng trong messages[]
+4. Bot defer reply (ephemeral) rồi gọi API, trả về trong embed
+
+**Cấu hình:**
+- `AI_BASE_URL`: Base URL cho Chat Completions API. Nếu unset, dùng OpenAI mặc định
+- `AI_API_KEY`: API key. Cần thiết nếu dùng OpenAI; có thể bỏ trống cho local models (Ollama, vLLM)
+- `AI_MODEL`: Model name (vd: `gpt-4o-mini`, `gemini-2.0-flash`, `claude-sonnet-4-20250514`)
+- `AI_SYSTEM_PROMPT`: System prompt mặc định (optional, mặc định: "Bạn là trợ lý tiếng Việt hữu ích")
+
+**Xử lý lỗi:**
+- Chưa cấu hình AI_BASE_URL/AI_API_KEY → ephemeral reply lỗi
+- API timeout (30s) hoặc error → hiện message lỗi chi tiết từ API
+- Response > 2000 chars → truncate với thông báo "(câu trả lời bị cắt ngắn vì quá dài)"
+
+**Khi thêm env vars mới**, cần thêm vào `.env.example` và section Biến môi trường trên.
+**Lưu ý** khi sửa code lệnh `/ai`: cần đảm bảo `AI_BASE_URL` không có trailing slash (đã xử lý sẵn trong code).
