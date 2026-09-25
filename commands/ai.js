@@ -117,6 +117,11 @@ module.exports = {
             option
                 .setName('system')
                 .setDescription('System prompt tùy chỉnh (mặc định: trợ lý tiếng Việt)')
+        )
+        .addBooleanOption(option =>
+            option
+                .setName('visible')
+                .setDescription('Để mọi người trong kênh cùng thấy câu trả lời (mặc định: chỉ bạn thấy)')
         ),
     /**
      * @param {import('discord.js').ChatInputCommandInteraction} interaction
@@ -132,9 +137,10 @@ module.exports = {
 
         const question = interaction.options.getString('message')
         const systemPrompt = interaction.options.getString('system') || AI_SYSTEM_PROMPT
+        const isPublic = interaction.options.getBoolean('visible') ?? false
 
         // AI có thể mất vài giây → defer trước
-        await interaction.deferReply({ ephemeral: true })
+        await interaction.deferReply({ ephemeral: !isPublic })
 
         try {
             const reply = await askAI(interaction, client, question, systemPrompt)
