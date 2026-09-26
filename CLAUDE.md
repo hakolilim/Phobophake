@@ -184,7 +184,27 @@ Lệnh `/ai` cho phép người dùng chat với AI trực tiếp trong Discord.
 1. Bot fetch 10 tin nhắn gần nhất trong kênh (trước lệnh `/ai`) làm ngữ cảnh
 2. Tin nhắn của bot trong context sẽ có role `assistant`, còn lại là `user`
 3. Tin nhắn cuối cùng (câu hỏi của người dùng) được gửi cuối cùng trong messages[]
-4. Bot defer reply (ephemeral) rồi gọi API, trả về trong embed
+4. Bot defer reply (ephemeral nếu không chọn `visible`) rồi gọi API với `stream: true`
+5. Token stream từng delta qua SSE parser, render dần vào message bằng `interaction.editReply()` debounce mỗi 1.5s
+6. Khi stream kết thúc, flush lần cuối — người dùng thấy chữ hiện dần như ChatGPT
+
+**Streaming (discord + API):**
+
+Gọi API (`streamAI()`):
+- Gửi `stream: true` trong payload request
+- Đọc SSE stream bằng `readline` trên axios `responseType: 'stream'`
+- Parser SSE (`sseDeltas()`) extract `delta.content` từ từng chunk `data: {...}`
+- `AI_TIMEOUT_MS` áp dụng cho thời gian mở stream + interval giữa các chunk (deadline tổng, không chỉ timeout kết nối ban đầu)
+- **Fallback:** nếu provider không hỗ trợ stream (response trả JSON thường), tự detect và yield nội dung 1 lần — vẫn hoạt động, chỉ không thấy dần chữ
+
+Hiển thị Discord (`createStreamer()`):
+- Gom delta vào buffer, debounce editReply mỗi `EDIT_INTERVAL_MS` (1.5s)
+- Lần edit đầu tiên hiện khung embed trống với footer *"⏳ đang soạn..."* ngay sau defer, không chờ token đầu
+- Khi stream xong, flush lần cuối và hiện footer `Model: ...`
+- Lỗi edit (rate limit, network) được log và nuốt, không làm hỏng luồng stream
+- Stream bị ngắt giữa chừng (`abort()`) → hiển thị phần đã có + thông báo cảnh báo
+
+Giới hạn an toàn: embed field value tối đa 1024 chars (trước đây là 2000, gây lỗi khi response dài).
 
 **Cấu hình:**
 - `AI_BASE_URL`: Base URL cho Chat Completions API. Nếu unset, dùng OpenAI mặc định
@@ -195,8 +215,10 @@ Lệnh `/ai` cho phép người dùng chat với AI trực tiếp trong Discord.
 
 **Xử lý lỗi:**
 - Chưa cấu hình AI_BASE_URL/AI_API_KEY → ephemeral reply lỗi
-- API timeout (mặc định 30s, đổi qua `AI_TIMEOUT_MS`) hoặc error → hiện message lỗi chi tiết từ API
-- Response > 2000 chars → truncate với thông báo "(câu trả lời bị cắt ngắn vì quá dài)"
+- API timeout (mặc định 30s, đổi qua `AI_TIMEOUT_MS`) → hiện thông báo timeout
+- Stream bị ngắt giữa chừng → hiển thị phần text đã stream được + cảnh báo ⚠️
+- Provider không hỗ trợ stream → fallback non-stream, hiển thị bình thường
+- Response > 1024 chars → truncate trong embed field với thông báo "(câu trả lời bị cắt ngắn vì quá dài)"
 
 **Khi thêm env vars mới**, cần thêm vào `.env.example` và section Biến môi trường trên.
 **Lưu ý** khi sửa code lệnh `/ai`: cần đảm bảo `AI_BASE_URL` không có trailing slash (đã xử lý sẵn trong code).
