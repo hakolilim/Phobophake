@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js')
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js')
 
 const helpEmbed = () => new EmbedBuilder()
     .setColor(13250094)
@@ -99,7 +99,7 @@ module.exports = {
     async execute(interaction) {
         await interaction.reply({
             embeds: [helpEmbed()],
-            flags: [4096]
+            flags: MessageFlags.SuppressNotifications
         })
     }
 }

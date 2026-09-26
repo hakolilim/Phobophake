@@ -147,6 +147,8 @@ node bot
 
 8. **Múi giờ**: Nếu cần thêm timestamp, `moment-timezone` đã có trong dependencies.
 
+9. **Cờ ephemeral (discord.js 14.16+)**: Không truyền `ephemeral: true` / `fetchReply: true` trong `interaction.reply()` / `deferReply()` nữa — discord.js đã deprecate và in cảnh báo `Supplying "ephemeral" for interaction response options is deprecated. Utilize flags instead.` Dùng `flags: MessageFlags.Ephemeral` (import `MessageFlags` từ `discord.js`, giá trị 64) và `withResponse: true` (lấy message qua `response.resource.message`) hoặc `await interaction.fetchReply()`. `editReply()` không đổi được ephemeral → không truyền cờ này khi edit. Cờ `MessageFlags.SuppressNotifications` (4096) là cờ **khác**, chỉ dùng cho tin nhắn im lặng trong kênh chơi.
+
 ## Dependencies chính
 
 - `discord.js@14.27.0` - Discord API client

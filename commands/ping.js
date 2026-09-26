@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js')
+const { EmbedBuilder, MessageFlags } = require('discord.js')
 module.exports = {
     // "data" is the body of the command,
     // this is what we will find when we type /ping
@@ -17,10 +17,10 @@ module.exports = {
         })
         const sent = await interaction.reply({
             embeds: [PingBeforeEmbed],
-            fetchReply: true,
-            ephemeral: true
+            flags: MessageFlags.Ephemeral,
+            withResponse: true
         })
-        const TotalPing = sent.createdTimestamp - interaction.createdTimestamp
+        const TotalPing = (sent.resource?.message?.createdTimestamp ?? Date.now()) - interaction.createdTimestamp
         const PingEmbed = new EmbedBuilder()
         .setAuthor({
             name: `Ping của ${client.user.username}`,
@@ -38,9 +38,9 @@ module.exports = {
                 inline: true
             }
         )
+        // Không truyền ephemeral khi edit: cờ đã được đặt lúc reply và không thể đổi bằng editReply
         await interaction.editReply({
-            embeds: [PingEmbed],
-            ephemeral: true
+            embeds: [PingEmbed]
         })
     }
 }

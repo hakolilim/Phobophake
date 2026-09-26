@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, ChannelType, PermissionsBitField } = require('discord.js')
+const { SlashCommandBuilder, ChannelType, PermissionsBitField, MessageFlags } = require('discord.js')
 const config = require('../repos/config')
 const gameState = require('../repos/gameState')
 
@@ -15,7 +15,7 @@ module.exports = {
         if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
             await interaction.reply({
                 content: 'Bạn cần có quyền Admin để thực hiện thao tác này!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             })
             return
         }
@@ -26,7 +26,7 @@ module.exports = {
         if (!guildConfig) {
             await interaction.reply({
                 content: `Kênh **${channel.name}** chưa được cài đặt làm kênh nối từ!`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             })
             return
         }
@@ -36,7 +36,7 @@ module.exports = {
 
         await interaction.reply({
             content: `Đã xoá cài đặt kênh nối từ **${channel.name}** của máy chủ **${interaction.member.guild.name}**!`,
-            flags: [4096]
+            flags: MessageFlags.SuppressNotifications
         })
     }
 }

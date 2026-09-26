@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, Client, PermissionsBitField, EmbedBuilder } = require('discord.js')
+const { SlashCommandBuilder, Client, PermissionsBitField, EmbedBuilder, MessageFlags } = require('discord.js')
 require('dotenv').config({ quiet: true })
 const REPORT_CHANNEL = process.env.REPORT_CHANNEL || ''
 const dictionary = require('../repos/words')
@@ -24,7 +24,7 @@ const ensureReporterChannel = async (interaction) => {
     if (interaction.channelId !== REPORT_CHANNEL) {
         await interaction.reply({
             content: 'Lệnh này chỉ dùng được trong kênh báo cáo.',
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
         })
         return false
     }
@@ -38,7 +38,7 @@ const ensureValidWord = async (interaction, word) => {
     if (normalized.wordCount !== 2) {
         await interaction.reply({
             content: 'Cụm từ không hợp lệ.',
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
         })
         return null
     }
@@ -50,7 +50,7 @@ const ensureManageGuild = async (interaction) => {
     if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
         await interaction.reply({
             content: 'Bạn cần có quyền admin để gỡ từ khỏi blacklist.',
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
         })
         return false
     }
@@ -85,7 +85,7 @@ module.exports = {
         if (REPORT_CHANNEL === '') {
             return await interaction.reply({
                 content: 'Tính năng blacklist hiện không hoạt động.',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             })
         }
 
@@ -110,7 +110,7 @@ module.exports = {
                         ? `**${word}** đang nằm trong blacklist của bot.`
                         : `**${word}** không nằm trong blacklist của bot.`
                 )],
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             })
         }
 
@@ -121,7 +121,7 @@ module.exports = {
         if (!isBlacklisted) {
             return await interaction.reply({
                 content: `**${word}** không nằm trong blacklist.`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             })
         }
 
@@ -129,7 +129,7 @@ module.exports = {
         if (!removed) {
             return await interaction.reply({
                 content: `Không thể gỡ **${word}** khỏi blacklist.`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             })
         }
 
@@ -138,7 +138,7 @@ module.exports = {
                 'Đã gỡ blacklist',
                 `**${word}** đã được gỡ khỏi blacklist và được nạp lại vào từ điển runtime.`
             )],
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
         })
 
         const reportChannel = interaction.client.channels.cache.get(REPORT_CHANNEL)

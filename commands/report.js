@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Client, ButtonStyle } = require('discord.js')
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, Client, ButtonStyle, MessageFlags } = require('discord.js')
 require('dotenv').config({ quiet: true })
 const REPORT_CHANNEL = process.env.REPORT_CHANNEL || ''
 const dictionary = require('../repos/words')
@@ -122,7 +122,7 @@ module.exports = {
         if (REPORT_CHANNEL === '') {
             return await interaction.reply({
                 content: 'Tính năng báo cáo hiện không hoạt động!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             })
         }
 
@@ -136,34 +136,34 @@ module.exports = {
         if (normalized.wordCount !== 2) {
             return await interaction.reply({
                 content: `Cụm từ không hợp lệ`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             })
         }
 
         if (type === 'report' && !dictionary.checkWordIfInDictionary(word)) {
             return await interaction.reply({
                 content: `Cụm từ này không có trong từ điển của Bot`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             })
         }
 
         if (type === 'report' && dictionary.checkWordIfInReportDictionary(word)) {
             return await interaction.reply({
                 content: `Cụm từ này đã có trong danh sách đen của Bot`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             })
         }
 
         if (type === 'add' && dictionary.checkWordIfInDictionary(word)) {
             return await interaction.reply({
                 content: `Cụm từ này đã có trong từ điển của Bot`,
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             })
         }
 
         await interaction.reply({
             content: `Đã gửi yêu cầu ${getActionWord(type)} từ **${word}**`,
-            ephemeral: true
+            flags: MessageFlags.Ephemeral
         })
 
         const acceptButton = new ButtonBuilder()

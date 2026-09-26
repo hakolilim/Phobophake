@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js')
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js')
 const dictionary = require('../repos/words')
 const stats = require('../repos/stats')
 const ranking = require('../repos/ranking')
@@ -51,7 +51,7 @@ module.exports = {
         async execute(interaction, client) {
             await interaction.reply({
                 embeds: [statEmbed(client)],
-                flags: [4096]
+                flags: MessageFlags.SuppressNotifications
             })
         }
 }

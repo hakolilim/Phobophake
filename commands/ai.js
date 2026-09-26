@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder } = require('discord.js')
+const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js')
 const axios = require('axios')
 require('dotenv').config({ quiet: true })
 
@@ -136,7 +136,7 @@ module.exports = {
         if (!aiEnabled()) {
             return await interaction.reply({
                 content: 'Tính năng AI hiện chưa được cấu hình!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             })
         }
 
@@ -144,8 +144,8 @@ module.exports = {
         const systemPrompt = interaction.options.getString('system') || AI_SYSTEM_PROMPT
         const isPublic = interaction.options.getBoolean('visible') ?? false
 
-        // AI có thể mất vài giây → defer trước
-        await interaction.deferReply({ ephemeral: !isPublic })
+        // AI có thể mất vài giây → defer trước (chỉ người gọi thấy, trừ khi chọn visible)
+        await interaction.deferReply({ flags: isPublic ? undefined : MessageFlags.Ephemeral })
 
         try {
             const reply = await askAI(interaction, client, question, systemPrompt)

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, ChannelType, PermissionsBitField } = require('discord.js');
+const { SlashCommandBuilder, ChannelType, PermissionsBitField, MessageFlags } = require('discord.js');
 const config = require('../repos/config')
 
 module.exports = {
@@ -18,7 +18,7 @@ module.exports = {
         if(!interaction.member.permissions.has(PermissionsBitField.Flags.ManageGuild)) {
             await interaction.reply({
                 content: 'Bạn cần có quyền Admin để thực hiện thao tác này!',
-                ephemeral: true
+                flags: MessageFlags.Ephemeral
             })
         } else {
             let channel = interaction.options.getChannel('channel')
@@ -28,7 +28,7 @@ module.exports = {
             if (!interaction.member.permissionsIn(channel).has(PermissionsBitField.Flags.ViewChannel)) {
                 await interaction.reply({
                     content: 'Tôi không có quyền xem kênh này!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 })
                 return
             }
@@ -36,7 +36,7 @@ module.exports = {
             if (!interaction.member.permissionsIn(channel).has(PermissionsBitField.Flags.SendMessages)) {
                 await interaction.reply({
                     content: 'Tôi không có quyền gửi tin nhắn ở kênh này!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 })
                 return
             }
@@ -44,7 +44,7 @@ module.exports = {
             if (!interaction.member.permissionsIn(channel).has(PermissionsBitField.Flags.AddReactions)) {
                 await interaction.reply({
                     content: 'Tôi không có quyền thả cảm xúc vào tin nhắn ở kênh này!',
-                    ephemeral: true
+                    flags: MessageFlags.Ephemeral
                 })
                 return
             }
@@ -53,7 +53,7 @@ module.exports = {
 
             await interaction.reply({
                 content: `Bạn đã chọn kênh **${channel.name}** làm kênh chơi nối từ của máy chủ **${interaction.member.guild.name}**!${botMode ? ' Chế độ nối từ với bot đã được **bật**.' : ''}`,
-                flags: [4096]
+                flags: MessageFlags.SuppressNotifications
             })
 
             return

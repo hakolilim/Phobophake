@@ -1,5 +1,5 @@
 const fs = require('fs')
-const { Client, GatewayIntentBits, Collection, PermissionsBitField } = require('discord.js')
+const { Client, GatewayIntentBits, Collection, PermissionsBitField, MessageFlags } = require('discord.js')
 require('dotenv').config({ quiet: true })
 
 const words = require('./repos/words')
@@ -64,14 +64,14 @@ client.on('messageCreate', async message => {
         const sendMessageToChannel = (msg, channel_id) => {
             client.channels.cache.get(channel_id).send({
                 content: msg,
-                flags: [4096]
+                flags: MessageFlags.SuppressNotifications
             })
         }
 
         const sendAutoDeleteMessageToChannel = (msg, channel_id, seconds = 3) => {
             client.channels.cache.get(channel_id).send({
                 content: msg,
-                flags: [4096]
+                flags: MessageFlags.SuppressNotifications
             }).then(mess => setTimeout(() => mess.delete(), 1000 * seconds))
         }
 
@@ -121,36 +121,31 @@ client.on('messageCreate', async message => {
             if (arg === 'set') {
                 if (!message.member.permissionsIn(message.channelId).has(PermissionsBitField.Flags.ManageGuild)) {
                     return message.reply({
-                        content: 'Bạn cần có quyền `MANAGE_GUILD` để dùng lệnh này',
-                        ephemeral: true
+                        content: 'Bạn cần có quyền `MANAGE_GUILD` để dùng lệnh này'
                     })
                 } else {
                     await config.setChannel(message.guildId, message.channelId)
                     return message.reply({
-                        content: `Bạn đã chọn kênh **${message.channel.name}** làm kênh nối từ của máy chủ **${message.guild.name}**. Dùng \`!start\` để bắt đầu trò chơi`,
-                        ephemeral: true
+                        content: `Bạn đã chọn kênh **${message.channel.name}** làm kênh nối từ của máy chủ **${message.guild.name}**. Dùng \`!start\` để bắt đầu trò chơi`
                     })
                 }
             }
             if (arg === 'unset') {
                 if (!message.member.permissionsIn(message.channelId).has(PermissionsBitField.Flags.ManageGuild)) {
                     return message.reply({
-                        content: 'Bạn cần có quyền `MANAGE_GUILD` để dùng lệnh này',
-                        ephemeral: true
+                        content: 'Bạn cần có quyền `MANAGE_GUILD` để dùng lệnh này'
                     })
                 }
                 const guildConfig = config.getConfig(message.channelId)
                 if (!guildConfig) {
                     return message.reply({
-                        content: `Kênh **${message.channel.name}** chưa được cài đặt làm kênh nối từ!`,
-                        ephemeral: true
+                        content: `Kênh **${message.channel.name}** chưa được cài đặt làm kênh nối từ!`
                     })
                 }
                 await config.unsetChannel(message.channelId)
                 await gameState.removeGameState(message.channelId)
                 return message.reply({
-                    content: `Đã xoá cài đặt kênh nối từ **${message.channel.name}** của máy chủ **${message.guild.name}**!`,
-                    ephemeral: true
+                    content: `Đã xoá cài đặt kênh nối từ **${message.channel.name}** của máy chủ **${message.guild.name}**!`
                 })
             }
         }
@@ -310,7 +305,7 @@ client.on('messageCreate', async message => {
             await stats.addWordPlayedCount()
 
             const botChannel = client.channels.cache.get(configChannel)
-            const botMsg = await botChannel.send({ content: `**${nextWord}**`, flags: [4096] })
+            const botMsg = await botChannel.send({ content: `**${nextWord}**`, flags: MessageFlags.SuppressNotifications })
             await botMsg.react(CORRECT_EMOJI)
 
             console.log(`[${message.guild.name}][${message.channel.name}][#${words_.length + 1}] (bot) ${nextWord}`)
@@ -346,14 +341,18 @@ client.on('interactionCreate', async (interaction) => {
         )
         await command.execute(interaction, client)
         // But if there is a mistake,
-        // then we log that and send an error message only to the person (ephemeral: true)
+        // then we log that and send an error message only to the person (flags: MessageFlags.Ephemeral)
     } catch (error) {
         console.error(error)
-        return interaction.reply({
+        const errorReply = {
             content: "An error occurred while executing this command!",
-            ephemeral: true,
-            fetchReply: true
-        })
+            flags: MessageFlags.Ephemeral
+        }
+        // Nếu command đã defer/reply rồi (vd: /ai defer xong mới lỗi) thì không thể reply lần nữa
+        // → phải dùng followUp, nếu không sẽ ném InteractionAlreadyReplied
+        return interaction.replied || interaction.deferred
+            ? interaction.followUp(errorReply)
+            : interaction.reply(errorReply)
     }
 })
 
