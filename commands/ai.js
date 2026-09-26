@@ -18,6 +18,9 @@ const AI_TIMEOUT_MS = AI_TIMEOUT_ENV > 0 ? AI_TIMEOUT_ENV : 30 * 1000
 const CONTEXT_LIMIT = 10 // số tin nhắn gần nhất lấy làm ngữ cảnh
 const MAX_REPLY_LENGTH = 1024 // giới hạn value của embed field theo Discord API
 const EDIT_INTERVAL_MS = 1500 // debounce edit message khi đang stream
+// Khi tách phần chỉ tìm điểm cắt trong [MAX_REPLY_LENGTH - 200, MAX_REPLY_LENGTH]
+// để mỗi phần gần đủ 1024 chars thay vì cắt quá sớm ở ranh giới gần nhất
+const BREAK_SEARCH_WINDOW = 200
 
 // Tính năng được kích hoạt nếu đã cấu hình AI_BASE_URL hoặc AI_API_KEY
 const aiEnabled = () => (process.env.AI_BASE_URL || '').trim() !== '' || AI_API_KEY !== ''
@@ -134,46 +137,78 @@ const buildMessages = async (interaction, client, question, systemPrompt) => {
     ]
 }
 
-// ─── Cắt ngắn ────────────────────────────────────────────────────────────────
+// ─── Chia nhỏ nội dung ───────────────────────────────────────────────────────
 
 /**
- * Cắt bớt câu trả lời cho vừa giới hạn value của embed field.
+ * Cắt bớt nội dung cho vừa embed field khi đang stream.
+ * Khi stream xong, `splitChunks()` sẽ tách đầy đủ thành nhiều phần ≤ 1024 chars.
  * @param {String} text
  * @returns {String}
  */
-const truncate = (text) => {
+const clip = (text) => {
     if (text.length <= MAX_REPLY_LENGTH) {
         return text
     }
-    return `${text.slice(0, MAX_REPLY_LENGTH - 50)}\n\n*...(câu trả lời bị cắt ngắn vì quá dài)*`
+    return `${text.slice(0, MAX_REPLY_LENGTH - 40)}\n\n*⏳ đang soạn tiếp...*`
+}
+
+/**
+ * Tách chuỗi thành nhiều phần ≤ MAX_REPLY_LENGTH, cắt tại ranh giới tự nhiên
+ * (đoạn → dòng mới → khoảng trắng). Guard tránh infinite loop nếu 1 đoạn dài
+ * vượt xa giới hạn (slice cứng tại MAX_REPLY_LENGTH).
+ * @param {String} text
+ * @returns {string[]}
+ */
+const splitChunks = (text) => {
+    const chunks = []
+    let rest = text
+    while (rest.length > MAX_REPLY_LENGTH) {
+        const floor = Math.max(1, MAX_REPLY_LENGTH - BREAK_SEARCH_WINDOW)
+        const window = rest.slice(floor, MAX_REPLY_LENGTH)
+        let cut = -1
+        // Ưu tiên: đoạn trống (\n\n) → dòng mới (\n) → khoảng trắng ( )
+        for (const sep of ['\n\n', '\n', ' ']) {
+            const idx = window.lastIndexOf(sep)
+            if (idx !== -1) {
+                cut = Math.min(floor + idx + sep.length, MAX_REPLY_LENGTH)
+                break
+            }
+        }
+        if (cut <= 0) cut = MAX_REPLY_LENGTH // edge case: 1 token quá dài
+        chunks.push(rest.slice(0, cut).trimEnd())
+        rest = rest.slice(cut)
+    }
+    if (rest.trim() !== '') chunks.push(rest.trimEnd())
+    return chunks
 }
 
 // ─── Embed ───────────────────────────────────────────────────────────────────
 
 /**
- * Embed hiển thị câu hỏi + câu trả lời đang stream hoặc đã hoàn tất.
+ * Embed hiển thị một phần của câu trả lời.
+ * Phần đầu kèm luôn câu hỏi; các phần sau chỉ hiện nội dung trả lời.
  * @param {String} question
  * @param {String} reply
- * @param {{ streaming?: Boolean }} options
+ * @param {{ streaming?: Boolean, partIndex?: Number, partTotal?: Number }} options
  * @returns {EmbedBuilder}
  */
-const aiEmbed = (question, reply, { streaming = false } = {}) => new EmbedBuilder()
-    .setColor(13250094)
-    .setTitle(':crystal_ball: Trí tuệ nhân tạo')
-    .addFields(
-        {
-            name: 'Bạn hỏi',
-            value: question,
-            inline: false
-        },
-        {
-            name: 'AI trả lời',
-            value: truncate(reply) || '*đang soạn...*',
-            inline: false
-        }
-    )
-    .setFooter({ text: streaming ? `Model: ${AI_MODEL} · ⏳ đang soạn...` : `Model: ${AI_MODEL}` })
-    .setTimestamp()
+const aiEmbed = (question, reply, { streaming = false, partIndex = 0, partTotal = 1 } = {}) => {
+    const footer = [`Model: ${AI_MODEL}`]
+    if (partTotal > 1) footer.push(`phần ${partIndex + 1}/${partTotal}`)
+    if (streaming) footer.push('⏳ đang soạn...')
+
+    const embed = new EmbedBuilder()
+        .setColor(13250094)
+        .setTitle(':crystal_ball: Trí tuệ nhân tạo')
+
+    if (partIndex === 0) {
+        embed.addFields({ name: 'Bạn hỏi', value: clip(question), inline: false })
+    }
+    embed.addFields({ name: 'AI trả lời', value: clip(reply) || '*đang soạn...*', inline: false })
+    embed.setFooter({ text: footer.join(' · ') })
+    embed.setTimestamp()
+    return embed
+}
 
 // ─── Renderer có throttle ────────────────────────────────────────────────────
 
@@ -181,21 +216,56 @@ const aiEmbed = (question, reply, { streaming = false } = {}) => new EmbedBuilde
  * Gom token vào buffer, edit message mỗi EDIT_INTERVAL_MS để tránh dính rate limit.
  * @param {import('discord.js').ChatInputCommandInteraction} interaction
  * @param {String} question
+ * @param {Boolean} isPublic false = reply của interaction là ephemeral
  */
-const createStreamer = (interaction, question) => {
+const createStreamer = (interaction, question, isPublic) => {
     let buffer = ''
     let timer = null
     let done = false
     let lastRendered = null
-    // Xếp các lần edit nối tiếp để không gọi editReply chồng lên nhau
+    // Xếp các lần edit/followUp nối tiếp để không gọi chồng lên nhau
     let queue = Promise.resolve()
+
+    // Ephemeral không được kế thừa từ interaction → mỗi followUp phải tự mang cờ
+    const replyFlags = isPublic ? undefined : MessageFlags.Ephemeral
+    const logError = (err) => console.error('[ERROR] /ai:', err.status || err.code || err.message)
 
     const render = (text) => {
         if (text === lastRendered) return
         lastRendered = text
         queue = queue
             .then(() => interaction.editReply({ embeds: [aiEmbed(question, text, { streaming: !done })] }))
-            .catch(err => console.error('[ERROR] /ai editReply:', err.status || err.code || err.message))
+            .catch(logError)
+    }
+
+    /**
+     * Chốt nội dung cuối cùng: giữ nguyên 1 message nếu vừa 1 phần,
+     * nếu dài hơn thì tách thành nhiều message (edit reply cũ + followUp các phần sau).
+     * @param {String} text toàn bộ nội dung
+     * @param {String} [warning] cảnh báo gắn vào message cuối (dùng khi stream bị ngắt)
+     * @returns {Promise<void>}
+     */
+    const publish = async (text, warning) => {
+        const chunks = text.trim() === '' ? [] : splitChunks(text)
+        const total = chunks.length
+        lastRendered = null // buộc ghi lại, tránh lastRendered chặn lần chốt này
+
+        // Không có nội dung → để execute() tự xử lý lỗi
+        if (total === 0) return
+
+        queue = queue
+            .then(async () => {
+                await interaction.editReply({ embeds: [aiEmbed(question, chunks[0], { partIndex: 0, partTotal: total })] })
+                for (let i = 1; i < total; i++) {
+                    await interaction.followUp({
+                        content: i === total - 1 && warning ? `⚠️ ${warning}` : undefined,
+                        embeds: [aiEmbed(question, chunks[i], { partIndex: i, partTotal: total })],
+                        flags: replyFlags
+                    })
+                }
+            })
+            .catch(logError)
+        await queue
     }
 
     return {
@@ -214,7 +284,7 @@ const createStreamer = (interaction, question) => {
         },
 
         /**
-         * Kết thúc stream — bỏ timer pending, flush nội dung cuối cùng.
+         * Kết thúc stream — bỏ timer pending, chốt nội dung cuối cùng.
          * @returns {Promise<String>} toàn bộ nội dung đã stream
          */
         async finish () {
@@ -223,14 +293,13 @@ const createStreamer = (interaction, question) => {
                 timer = null
             }
             done = true
-            render(buffer)
-            await queue
+            await publish(buffer)
             return buffer
         },
 
         /**
-         * Stream bị ngắt — hiển thị phần đã có kèm cảnh báo trong đúng 1 lần editReply
-         * (tránh gọi editReply 2 lần → dễ dính lỗi đã reply).
+         * Stream bị ngắt — hiển thị phần đã có (kèm cảnh báo ở message cuối)
+         * qua đúng 1 lần editReply + các followUp nếu nội dung dài.
          * @param {String} warning
          */
         async abort (warning) {
@@ -239,14 +308,13 @@ const createStreamer = (interaction, question) => {
                 timer = null
             }
             done = true
-            lastRendered = null // bỏ qua check trùng, buộc render lần này
-            queue = queue
-                .then(() => interaction.editReply({
-                    content: `⚠️ ${warning}`,
-                    embeds: buffer.trim() !== '' ? [aiEmbed(question, buffer)] : []
-                }))
-                .catch(err => console.error('[ERROR] /ai editReply:', err.status || err.code || err.message))
-            await queue
+            if (buffer.trim() === '') {
+                lastRendered = null
+                queue = queue.then(() => interaction.editReply({ content: `⚠️ ${warning}`, embeds: [] })).catch(logError)
+                await queue
+                return
+            }
+            await publish(buffer, warning)
         },
 
         get text () { return buffer }
@@ -295,7 +363,7 @@ module.exports = {
         await interaction.deferReply({ flags: isPublic ? undefined : MessageFlags.Ephemeral })
 
         // Ngoài try để nhánh lỗi vẫn đọc được phần đã stream
-        const streamer = createStreamer(interaction, question)
+        const streamer = createStreamer(interaction, question, isPublic)
 
         try {
             const messages = await buildMessages(interaction, client, question, systemPrompt)
