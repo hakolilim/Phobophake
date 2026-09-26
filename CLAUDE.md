@@ -171,6 +171,7 @@ AI_BASE_URL=...        # Base URL OpenAI-compatible API (mặc định: https://
 AI_API_KEY=...         # API key của provider AI (bắt buộc nếu AI_BASE_URL là OpenAI)
 AI_MODEL=...           # Model name (mặc định: gpt-4o-mini)
 AI_SYSTEM_PROMPT=...   # System prompt mặc định cho /ai (optional)
+AI_TIMEOUT_MS=...      # Timeout (ms) khi gọi API AI (mặc định: 30000)
 ```
 
 ## Lệnh `/ai` — Chat với AI
@@ -188,10 +189,11 @@ Lệnh `/ai` cho phép người dùng chat với AI trực tiếp trong Discord.
 - `AI_API_KEY`: API key. Cần thiết nếu dùng OpenAI; có thể bỏ trống cho local models (Ollama, vLLM)
 - `AI_MODEL`: Model name (vd: `gpt-4o-mini`, `gemini-2.0-flash`, `claude-sonnet-4-20250514`)
 - `AI_SYSTEM_PROMPT`: System prompt mặc định (optional, mặc định: "Bạn là trợ lý tiếng Việt hữu ích")
+- `AI_TIMEOUT_MS`: Timeout (ms) khi gọi API AI (optional, mặc định: `30000`). Chỉ nhận số dương; giá trị rỗng/không phải số/âm sẽ tự fallback về 30000
 
 **Xử lý lỗi:**
 - Chưa cấu hình AI_BASE_URL/AI_API_KEY → ephemeral reply lỗi
-- API timeout (30s) hoặc error → hiện message lỗi chi tiết từ API
+- API timeout (mặc định 30s, đổi qua `AI_TIMEOUT_MS`) hoặc error → hiện message lỗi chi tiết từ API
 - Response > 2000 chars → truncate với thông báo "(câu trả lời bị cắt ngắn vì quá dài)"
 
 **Khi thêm env vars mới**, cần thêm vào `.env.example` và section Biến môi trường trên.

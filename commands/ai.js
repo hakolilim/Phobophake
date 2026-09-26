@@ -9,6 +9,11 @@ const AI_API_KEY = process.env.AI_API_KEY || ''
 const AI_MODEL = process.env.AI_MODEL || 'gpt-4o-mini'
 const AI_SYSTEM_PROMPT = process.env.AI_SYSTEM_PROMPT || 'Bạn là trợ lý tiếng Việt hữu ích, trả lời ngắn gọn, súc tích.'
 
+// Timeout (ms) khi gọi API AI — AI_TIMEOUT_MS trong .env.
+// Chỉ nhận số dương; nhập sai/âm/rỗng → fallback 30s (timeout: 0 trong axios nghĩa là không giới hạn)
+const AI_TIMEOUT_ENV = Number(process.env.AI_TIMEOUT_MS)
+const AI_TIMEOUT_MS = AI_TIMEOUT_ENV > 0 ? AI_TIMEOUT_ENV : 30 * 1000
+
 const CONTEXT_LIMIT = 10 // số tin nhắn gần nhất lấy làm ngữ cảnh
 const MAX_REPLY_LENGTH = 2000 // giới hạn của Discord message/embed description an toàn
 
@@ -61,7 +66,7 @@ const askAI = async (interaction, client, question, systemPrompt) => {
         },
         {
             headers,
-            timeout: 30 * 1000
+            timeout: AI_TIMEOUT_MS
         }
     )
 
