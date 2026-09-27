@@ -216,7 +216,7 @@ const aiEmbed = (question, reply, { streaming = false, partIndex = 0, partTotal 
  * Gom token vào buffer, edit message mỗi EDIT_INTERVAL_MS để tránh dính rate limit.
  * @param {import('discord.js').ChatInputCommandInteraction} interaction
  * @param {String} question
- * @param {Boolean} isPublic false = reply của interaction là ephemeral
+ * @param {Boolean} isPublic true = reply của interaction hiển thị công khai; false = ephemeral
  */
 const createStreamer = (interaction, question, isPublic) => {
     let buffer = ''
@@ -341,7 +341,7 @@ module.exports = {
         .addBooleanOption(option =>
             option
                 .setName('visible')
-                .setDescription('Để mọi người trong kênh cùng thấy câu trả lời (mặc định: chỉ bạn thấy)')
+                .setDescription('Để mọi người trong kênh cùng thấy câu trả lời (mặc định: mọi người đều thấy; tắt để chỉ bạn thấy)')
         ),
     /**
      * @param {import('discord.js').ChatInputCommandInteraction} interaction
@@ -357,9 +357,9 @@ module.exports = {
 
         const question = interaction.options.getString('message')
         const systemPrompt = interaction.options.getString('system') || AI_SYSTEM_PROMPT
-        const isPublic = interaction.options.getBoolean('visible') ?? false
+        const isPublic = interaction.options.getBoolean('visible') ?? true
 
-        // AI có thể mất vài giây → defer trước (chỉ người gọi thấy, trừ khi chọn visible)
+        // AI có thể mất vài giây → defer trước (mọi người đều thấy, trừ khi tắt visible)
         await interaction.deferReply({ flags: isPublic ? undefined : MessageFlags.Ephemeral })
 
         // Ngoài try để nhánh lỗi vẫn đọc được phần đã stream

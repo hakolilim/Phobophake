@@ -184,7 +184,7 @@ Lệnh `/ai` cho phép người dùng chat với AI trực tiếp trong Discord.
 1. Bot fetch 10 tin nhắn gần nhất trong kênh (trước lệnh `/ai`) làm ngữ cảnh
 2. Tin nhắn của bot trong context sẽ có role `assistant`, còn lại là `user`
 3. Tin nhắn cuối cùng (câu hỏi của người dùng) được gửi cuối cùng trong messages[]
-4. Bot defer reply (ephemeral nếu không chọn `visible`) rồi gọi API với `stream: true`
+4. Bot defer reply (công khai mặc định; ephemeral khi người dùng tắt `visible`) rồi gọi API với `stream: true`
 5. Token stream từng delta qua SSE parser, render dần vào message bằng `interaction.editReply()` debounce mỗi 1.5s
 6. Khi stream kết thúc: nếu nội dung ≤ 1024 chars thì giữ nguyên 1 message; nếu dài hơn thì tách thành nhiều message (edit message cũ + `interaction.followUp()` các phần sau)
 
@@ -207,7 +207,7 @@ Hiển thị Discord (`createStreamer()`):
 Embed field value giới hạn 1024 chars, nên response dài được tách thành nhiều message thay vì cắt ngắn:
 - `splitChunks(text)` tách chuỗi thành các phần ≤ 1024 chars, cắt tại ranh giới tự nhiên theo thứ tự ưu tiên: đoạn trống (`\n\n`) → dòng mới (`\n`) → khoảng trắng (` `). Chỉ tìm điểm cắt trong cửa sổ 200 chars cuối (`BREAK_SEARCH_WINDOW`) để mỗi phần gần đủ 1024 thay vì cắt quá sớm. Nếu 1 đoạn dài vượt xa giới hạn thì slice cứng tại 1024 (guard tránh infinite loop).
 - `publish(text, warning)` chạy lúc chốt stream: `editReply` lại message hiện tại với phần 1, rồi `interaction.followUp()` cho các phần 2..N. Tất cả gọi API đều đi qua cùng `queue` serialized như lúc stream.
-- **Ephemeral không được kế thừa** → mỗi `followUp` đều phải tự mang `flags: MessageFlags.Ephemeral` khi người dùng không chọn `visible`.
+- **Ephemeral không được kế thừa** → mỗi `followUp` đều phải tự mang `flags: MessageFlags.Ephemeral` khi người dùng tắt `visible` (mặc định câu trả lời là công khai).
 - Câu hỏi ("Bạn hỏi") chỉ hiện ở phần 1. Footer hiện `phần k/N` khi có nhiều phần (N biết trước khi gửi nên không cần final pass edit lại footer).
 - `clip()` chỉ dùng khi **đang stream** để giữ field value ≤ 1024, kèm dòng *"⏳ đang soạn tiếp..."*. Khi stream xong, `splitChunks()` tách đầy đủ, nội dung không bị mất.
 - `abort()` cũng dùng `publish()`: nếu phần đã stream dài hơn 1024 chars thì tách thành nhiều phần, cảnh báo ⚠️ gắn vào message cuối cùng.
