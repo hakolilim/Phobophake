@@ -7,7 +7,7 @@
 Kiến trúc cơ bản:
 
 - `bot.js` là entrypoint, chứa phần lớn logic game và xử lý `messageCreate`, `interactionCreate`. Lúc khởi động chạy `bootstrap()` nạp toàn bộ state từ Supabase vào RAM rồi mới `client.login()`.
-- `commands/` chứa các slash command (`/help`, `/stats`, `/rank`, `/me`, `/server`, `/report`, `/set-channel`, `/unblacklist`, `/ping`)
+- `commands/` chứa các slash command (`/help`, `/stats`, `/rank`, `/me`, `/server`, `/report`, `/set-channel`, `/unblacklist`, `/broadcast`, `/ping`)
 - `events/` chứa event handler, hiện tại chỉ có `ready.js` để thiết lập trạng thái bot
 - `modules/sync_commands.js` đồng bộ slash commands với Discord khi bot khởi động
 - `db/supabase.js` khởi tạo Supabase client (singleton) từ `SUPABASE_URL` + `SUPABASE_KEY`
@@ -22,7 +22,7 @@ Các bảng Supabase (xem `supabase/schema.sql`):
 
 - `words` (PK `word`): từ điển chính, seed tự động từ GitHub ở lần chạy đầu nếu rỗng. Quản lý bởi `repos/words.js`.
 - `report_words` (PK `word`): blacklist động (từ bị report được chấp nhận). Quản lý bởi `repos/words.js`.
-- `guild_config` (PK `guild_id`, cột `channel_id`): cấu hình kênh nối từ. Quản lý bởi `repos/config.js`.
+- `guild_config` (PK `channel_id`, cột `guild_id`): cấu hình kênh nối từ; một guild có thể có nhiều kênh. Quản lý bởi `repos/config.js`.
 - `game_state` (PK `channel_id`): trạng thái ván hiện tại (`running`, `current_player_id/name`, `words` jsonb). Quản lý bởi `repos/gameState.js`.
 - `rankings` (PK `guild_id,user_id`): BXH mỗi server. Cột `true_count` map sang thuộc tính `.true` trong RAM (vì `true` là từ khóa SQL). Quản lý bởi `repos/ranking.js`.
 - `global_stats` (PK `key`): 3 counter `query`, `word_played`, `round_played`. Quản lý bởi `repos/stats.js`.
@@ -80,6 +80,10 @@ Lệnh này chỉ dùng được trong `REPORT_CHANNEL` bởi người có quy�
 - `/unblacklist <word> check` - kiểm tra từ có trong blacklist không
 - `/unblacklist <word> remove` - gỡ từ khỏi blacklist (xóa khỏi bảng `report_words`, cập nhật `global.dicData`)
 
+## Lệnh `/broadcast`
+
+Lệnh này chỉ dùng được trong `REPORT_CHANNEL`; bất kỳ thành viên nào trong kênh đó đều có thể gửi cùng một tin nhắn đến tất cả kênh nối từ đã cấu hình trong `guild_config` (có thể gồm nhiều kênh trong cùng một guild). Lệnh không phát ping cho user, role hoặc `@everyone`; kết quả riêng tư hiển thị số kênh gửi thành công/thất bại.
+
 ## Các lệnh khác
 
 - `/help` - hướng dẫn sử dụng bot
@@ -89,6 +93,7 @@ Lệnh này chỉ dùng được trong `REPORT_CHANNEL` bởi người có quy�
 - `/server` - thông tin server (tên, icon, member count, Premium status)
 - `/ping` - ping bot
 - `/set-channel <channel>` - cấu hình kênh nối từ (yêu cầu quyền `MANAGE_GUILD`)
+- `/broadcast <message>` - gửi tin nhắn đến tất cả kênh nối từ đã cấu hình (chỉ trong `REPORT_CHANNEL`, mọi thành viên trong kênh đều dùng được)
 
 ## Quyền Discord cần thiết
 

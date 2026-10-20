@@ -1,5 +1,7 @@
 const supabase = require('../db/supabase')
 
+const PAGE_SIZE = 1000
+
 // cache RAM keyed by channelId: { [channelId]: { guildId, channel, botMode } }
 let configCache = {}
 
@@ -7,21 +9,35 @@ let configCache = {}
  * Nạp toàn bộ cấu hình kênh từ Supabase vào RAM.
  */
 const loadConfig = async () => {
-    const { data, error } = await supabase
-        .from('guild_config')
-        .select('guild_id, channel_id, bot_mode')
-    if (error) {
-        throw new Error('Lỗi nạp guild_config: ' + error.message)
-    }
-    configCache = {}
-    for (const row of data) {
-        configCache[row.channel_id] = {
-            guildId: row.guild_id,
-            channel: row.channel_id,
-            botMode: row.bot_mode === true
+    const nextConfigCache = {}
+    let from = 0
+    let count = 0
+
+    for (;;) {
+        const { data, error } = await supabase
+            .from('guild_config')
+            .select('guild_id, channel_id, bot_mode')
+            .order('channel_id')
+            .range(from, from + PAGE_SIZE - 1)
+        if (error) {
+            throw new Error('Lỗi nạp guild_config: ' + error.message)
         }
+
+        if (!data || data.length === 0) break
+        for (const row of data) {
+            nextConfigCache[row.channel_id] = {
+                guildId: row.guild_id,
+                channel: row.channel_id,
+                botMode: row.bot_mode === true
+            }
+        }
+        count += data.length
+        if (data.length < PAGE_SIZE) break
+        from += PAGE_SIZE
     }
-    console.log(`[OK] Nạp cấu hình ${data.length} kênh nối từ.`)
+
+    configCache = nextConfigCache
+    console.log(`[OK] Nạp cấu hình ${count} kênh nối từ.`)
 }
 
 /**
@@ -31,6 +47,14 @@ const loadConfig = async () => {
  */
 const getConfig = (channelId) => {
     return configCache[channelId]
+}
+
+/**
+ * Lấy snapshot cấu hình của tất cả kênh nối từ.
+ * @returns {{guildId: String, channel: String, botMode: Boolean}[]}
+ */
+const getAllConfigs = () => {
+    return Object.values(configCache).map(channelConfig => ({ ...channelConfig }))
 }
 
 /**
@@ -67,6 +91,7 @@ const unsetChannel = async (channelId) => {
 module.exports = {
     loadConfig,
     getConfig,
+    getAllConfigs,
     setChannel,
     unsetChannel
 }

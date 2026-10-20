@@ -115,6 +115,7 @@ Render free yêu cầu process mở HTTP port. Bot đã tích hợp Express cho 
 | /me                        | Xem thống kê nối từ cá nhân     |                                    |
 | /server                    | Xem thông tin máy chủ           |                                    |
 | /report <từ> [lí do]       | Báo cáo từ sai / đề xuất từ mới |                                    |
+| /broadcast <message>       | Gửi tin đến tất cả kênh nối từ đã cấu hình | Chỉ trong `REPORT_CHANNEL`          |
 | /unblacklist <từ> [action] | Kiểm tra / gỡ từ khỏi blacklist | `MANAGE_GUILD` (trong report channel) |
 
 ## Kiến trúc & dữ liệu
