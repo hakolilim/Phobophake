@@ -187,11 +187,13 @@ Lệnh `/ai` cho phép người dùng chat với AI trực tiếp trong Discord.
 
 **Cách hoạt động:**
 1. Bot fetch 10 tin nhắn gần nhất trong kênh (trước lệnh `/ai`) làm ngữ cảnh
-2. Tin nhắn của bot trong context sẽ có role `assistant`, còn lại là `user`
-3. Tin nhắn cuối cùng (câu hỏi của người dùng) được gửi cuối cùng trong messages[]
-4. Bot defer reply (công khai mặc định; ephemeral khi người dùng tắt `visible`) rồi gọi API với `stream: true`
-5. Token stream từng delta qua SSE parser, render dần vào message bằng `interaction.editReply()` debounce mỗi 1.5s
-6. Khi stream kết thúc: nếu nội dung ≤ 1024 chars thì giữ nguyên 1 message; nếu dài hơn thì tách thành nhiều message (edit message cũ + `interaction.followUp()` các phần sau)
+2. Bot gửi tối đa 4 ảnh mới nhất trong ngữ cảnh, gồm attachment ảnh và ảnh/thumbnail từ Discord embed hoặc link preview; URL trùng sẽ bị loại
+3. Tin nhắn của bot trong context sẽ có role `assistant`, còn lại là `user`; tin nhắn chỉ có ảnh vẫn được giữ lại với placeholder `[đã gửi hình ảnh]`
+4. Tin nhắn có ảnh dùng content parts `text` + `image_url` theo chuẩn OpenAI Chat Completions; tin nhắn text-only vẫn dùng chuỗi như trước
+5. Tin nhắn cuối cùng (câu hỏi của người dùng) được gửi cuối cùng trong messages[]
+6. Bot defer reply (công khai mặc định; ephemeral khi người dùng tắt `visible`) rồi gọi API với `stream: true`
+7. Token stream từng delta qua SSE parser, render dần vào message bằng `interaction.editReply()` debounce mỗi 1.5s
+8. Khi stream kết thúc: nếu nội dung ≤ 1024 chars thì giữ nguyên 1 message; nếu dài hơn thì tách thành nhiều message (edit message cũ + `interaction.followUp()` các phần sau)
 
 **Streaming (discord + API):**
 
@@ -229,6 +231,7 @@ Embed field value giới hạn 1024 chars, nên response dài được tách th�
 - API timeout (mặc định 30s, đổi qua `AI_TIMEOUT_MS`) → hiện thông báo timeout
 - Stream bị ngắt giữa chừng → hiển thị phần text đã stream được + cảnh báo ⚠️ (tách thành nhiều message nếu dài)
 - Provider không hỗ trợ stream → fallback non-stream, hiển thị bình thường
+- Model/provider không hỗ trợ ảnh (lỗi 400/415/422 hoặc stream lỗi/rỗng trước token đầu) → tự retry một lần chỉ với text và cảnh báo người dùng; không retry lỗi auth, rate limit, timeout hoặc stream đã có nội dung
 - Response > 1024 chars → tự tách thành nhiều message followUp (mỗi message chứa 1 embed ≤ 1024 chars)
 
 **Khi thêm env vars mới**, cần thêm vào `.env.example` và section Biến môi trường trên.

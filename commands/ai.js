@@ -1,6 +1,12 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js')
 const axios = require('axios')
 const readline = require('readline')
+const {
+    buildContextMessages,
+    hasImageContent,
+    shouldFallbackToText,
+    stripImageContent
+} = require('../modules/ai_context')
 require('dotenv').config({ quiet: true })
 
 // Cấu hình AI qua .env — dùng chung định dạng OpenAI Chat Completions
@@ -16,6 +22,7 @@ const AI_TIMEOUT_ENV = Number(process.env.AI_TIMEOUT_MS)
 const AI_TIMEOUT_MS = AI_TIMEOUT_ENV > 0 ? AI_TIMEOUT_ENV : 30 * 1000
 
 const CONTEXT_LIMIT = 10 // số tin nhắn gần nhất lấy làm ngữ cảnh
+const CONTEXT_IMAGE_LIMIT = 4 // tối đa 4 ảnh mới nhất trong ngữ cảnh
 const MAX_REPLY_LENGTH = 1024 // giới hạn value của embed field theo Discord API
 const EDIT_INTERVAL_MS = 1500 // debounce edit message khi đang stream
 // Khi tách phần chỉ tìm điểm cắt trong [MAX_REPLY_LENGTH - 200, MAX_REPLY_LENGTH]
@@ -40,6 +47,14 @@ const sseDeltas = async function * (stream) {
         if (payload === '[DONE]') break
         let parsed
         try { parsed = JSON.parse(payload) } catch { continue }
+        if (parsed.error) {
+            const error = new Error(parsed.error.message || 'AI trả về lỗi trong stream')
+            error.aiStreamError = true
+            error.apiMessage = parsed.error.message
+            error.apiCode = parsed.error.code || parsed.error.type
+            error.status = parsed.error.status || (Number.isInteger(parsed.error.code) ? parsed.error.code : undefined)
+            throw error
+        }
         const delta = parsed.choices?.[0]?.delta?.content
         if (delta) yield delta
     }
@@ -88,6 +103,7 @@ const streamAI = async function * (messages) {
  * @returns {String}
  */
 const errorMessage = (err) => {
+    if (err.apiMessage) return `Lỗi từ AI: ${err.apiMessage}`
     if (err.response) {
         // Với responseType: 'stream', axios trả body lỗi cũng dạng stream → đọc hết rồi parse
         const data = err.response.data
@@ -122,13 +138,7 @@ const buildMessages = async (interaction, client, question, systemPrompt) => {
     // Sắp xếp cũ → mới để AI đọc đúng thứ tự hội thoại
     const sorted = [...fetched.values()].sort((a, b) => a.createdTimestamp - b.createdTimestamp)
 
-    const contextMessages = sorted
-        .filter(m => m.content && m.content.trim() !== '')
-        .map(m => ({
-            // Tin nhắn của bot chính là câu trả lời trước đó → role assistant
-            role: m.author.id === client.user.id ? 'assistant' : 'user',
-            content: `${m.author.displayName}: ${m.content}`
-        }))
+    const contextMessages = buildContextMessages(sorted, client.user.id, CONTEXT_IMAGE_LIMIT)
 
     return [
         { role: 'system', content: systemPrompt },
@@ -242,7 +252,7 @@ const createStreamer = (interaction, question, isPublic) => {
      * Chốt nội dung cuối cùng: giữ nguyên 1 message nếu vừa 1 phần,
      * nếu dài hơn thì tách thành nhiều message (edit reply cũ + followUp các phần sau).
      * @param {String} text toàn bộ nội dung
-     * @param {String} [warning] cảnh báo gắn vào message cuối (dùng khi stream bị ngắt)
+     * @param {String} [warning] cảnh báo gắn vào message cuối
      * @returns {Promise<void>}
      */
     const publish = async (text, warning) => {
@@ -255,7 +265,10 @@ const createStreamer = (interaction, question, isPublic) => {
 
         queue = queue
             .then(async () => {
-                await interaction.editReply({ embeds: [aiEmbed(question, chunks[0], { partIndex: 0, partTotal: total })] })
+                await interaction.editReply({
+                    content: total === 1 && warning ? `⚠️ ${warning}` : undefined,
+                    embeds: [aiEmbed(question, chunks[0], { partIndex: 0, partTotal: total })]
+                })
                 for (let i = 1; i < total; i++) {
                     await interaction.followUp({
                         content: i === total - 1 && warning ? `⚠️ ${warning}` : undefined,
@@ -287,13 +300,13 @@ const createStreamer = (interaction, question, isPublic) => {
          * Kết thúc stream — bỏ timer pending, chốt nội dung cuối cùng.
          * @returns {Promise<String>} toàn bộ nội dung đã stream
          */
-        async finish () {
+        async finish (warning) {
             if (timer !== null) {
                 clearTimeout(timer)
                 timer = null
             }
             done = true
-            await publish(buffer)
+            await publish(buffer, warning)
             return buffer
         },
 
@@ -326,7 +339,7 @@ const createStreamer = (interaction, question, isPublic) => {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('ai')
-        .setDescription('Chat với AI, AI sẽ đọc 10 tin nhắn gần nhất trong kênh')
+        .setDescription('Chat với AI, đọc văn bản và tối đa 4 ảnh trong 10 tin nhắn gần nhất')
         .addStringOption(option =>
             option
                 .setName('message')
@@ -367,18 +380,38 @@ module.exports = {
 
         try {
             const messages = await buildMessages(interaction, client, question, systemPrompt)
+            const containsImages = hasImageContent(messages)
 
             // Hiện ngay khung embed trống — người dùng thấy phản hồi tức thì, không chờ token đầu
             await interaction.editReply({ embeds: [aiEmbed(question, '', { streaming: true })] })
 
-            for await (const delta of streamAI(messages)) {
-                streamer.push(delta)
+            const streamMessages = async (payload) => {
+                let receivedText = ''
+                for await (const delta of streamAI(payload)) {
+                    receivedText += delta
+                    streamer.push(delta)
+                }
+                if (receivedText.trim() === '') {
+                    const error = new Error('AI trả về nội dung rỗng')
+                    error.emptyAIResponse = true
+                    throw error
+                }
             }
 
-            const reply = await streamer.finish()
-            if (reply.trim() === '') {
-                throw new Error('AI trả về nội dung rỗng')
+            let fallbackWarning
+            try {
+                await streamMessages(messages)
+            } catch (err) {
+                const canFallback = containsImages && streamer.text.trim() === '' && shouldFallbackToText(err)
+                if (!canFallback) throw err
+
+                // Hủy body lỗi dạng stream trước khi mở request retry.
+                if (typeof err.response?.data?.destroy === 'function') err.response.data.destroy()
+                fallbackWarning = 'Model/provider hiện tại không hỗ trợ xem ảnh; AI đã trả lời chỉ dựa trên văn bản.'
+                await streamMessages(stripImageContent(messages))
             }
+
+            await streamer.finish(fallbackWarning)
         } catch (err) {
             console.error('[ERROR] /ai:', err.status || err.code || err.message)
 
