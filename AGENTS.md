@@ -82,7 +82,7 @@ Lệnh này chỉ dùng được trong `REPORT_CHANNEL` bởi người có quy�
 
 ## Lệnh `/broadcast`
 
-Lệnh này chỉ dùng được trong `REPORT_CHANNEL`; bất kỳ thành viên nào trong kênh đó đều có thể gửi cùng một tin nhắn đến tất cả kênh nối từ đã cấu hình trong `guild_config` (có thể gồm nhiều kênh trong cùng một guild). Lệnh không phát ping cho user, role hoặc `@everyone`; kết quả riêng tư hiển thị số kênh gửi thành công/thất bại.
+Lệnh này chỉ dùng được trong `REPORT_CHANNEL`; bất kỳ thành viên nào trong kênh đó đều có thể gửi cùng một tin nhắn đến tất cả kênh nối từ trong `guild_config` và kênh đếm số trong `counting_channels` (có thể gồm nhiều kênh trong cùng một guild). Danh sách được lấy qua `config.getAllConfigs()` và `counting.getAllConfigs()`, loại trùng theo channel ID để mỗi kênh chỉ nhận một tin. Lệnh không phát ping cho user, role hoặc `@everyone`; kết quả riêng tư hiển thị số kênh gửi thành công/thất bại.
 
 ## Các lệnh khác
 
@@ -93,7 +93,7 @@ Lệnh này chỉ dùng được trong `REPORT_CHANNEL`; bất kỳ thành viên
 - `/server` - thông tin server (tên, icon, member count, Premium status)
 - `/ping` - ping bot
 - `/set-channel <channel>` - cấu hình kênh nối từ (yêu cầu quyền `MANAGE_GUILD`)
-- `/broadcast <message>` - gửi tin nhắn đến tất cả kênh nối từ đã cấu hình (chỉ trong `REPORT_CHANNEL`, mọi thành viên trong kênh đều dùng được)
+- `/broadcast <message>` - gửi tin nhắn đến tất cả kênh nối từ và đếm số đã cấu hình (chỉ trong `REPORT_CHANNEL`, mọi thành viên trong kênh đều dùng được)
 
 ## Quyền Discord cần thiết
 

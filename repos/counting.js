@@ -42,6 +42,12 @@ const getState = (channelId) => {
     return state && { ...state }
 }
 
+// Snapshot cấu hình kênh cho các chức năng dùng chung như broadcast.
+const getAllConfigs = () => [...stateCache].map(([channel, state]) => ({
+    channel,
+    guildId: state.guildId
+}))
+
 const persist = async (channelId, state) => {
     const { error } = await supabase.from('counting_channels').upsert({
         channel_id: channelId,
@@ -86,4 +92,4 @@ const submitCount = (channelId, content, userId) => {
     })
 }
 
-module.exports = { loadCountingStates, getState, setChannel, unsetChannel, submitCount }
+module.exports = { loadCountingStates, getState, getAllConfigs, setChannel, unsetChannel, submitCount }

@@ -194,6 +194,21 @@ test('bootstrap loads every page and resumes counts exactly beyond JS safe integ
     assert.equal(repo.getState('channel-1000').currentCount, '9007199254740993')
 })
 
+test('counting channel snapshots include loaded and newly enabled channels and exclude disabled ones', async () => {
+    const { repo } = createRepo([
+        { channel_id: 'a', guild_id: 'guild', current_count: '2', last_player_id: 'alice' }
+    ])
+    assert.deepEqual(repo.getAllConfigs(), [])
+    await repo.loadCountingStates()
+    const snapshot = repo.getAllConfigs()
+    assert.deepEqual(snapshot, [{ channel: 'a', guildId: 'guild' }])
+    snapshot[0].guildId = 'changed'
+    assert.equal(repo.getState('a').guildId, 'guild')
+    await repo.setChannel('other-guild', 'b')
+    await repo.unsetChannel('a')
+    assert.deepEqual(repo.getAllConfigs(), [{ channel: 'b', guildId: 'other-guild' }])
+})
+
 test('Discord reactions use configured emoji and a wrong count replies with the reset notice', async (t) => {
     const savedEnv = { CORRECT_EMOJI: process.env.CORRECT_EMOJI, WRONG_EMOJI: process.env.WRONG_EMOJI }
     t.after(() => {

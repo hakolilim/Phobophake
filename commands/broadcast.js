@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, MessageFlags, PermissionFlagsBits } = require('discord.js')
 require('dotenv').config({ quiet: true })
 const config = require('../repos/config')
+const counting = require('../repos/counting')
 
 const REPORT_CHANNEL = process.env.REPORT_CHANNEL || ''
 const FAILURE_DETAILS_LIMIT = 5
@@ -23,7 +24,7 @@ const recordFailure = (failures, channelId, reason, error) => {
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('broadcast')
-        .setDescription('Gửi tin nhắn đến tất cả kênh chơi nối từ đã cấu hình')
+        .setDescription('Gửi tin nhắn đến tất cả kênh nối từ và đếm số đã cấu hình')
         .addStringOption(option =>
             option
                 .setName('message')
@@ -60,9 +61,12 @@ module.exports = {
 
         await interaction.deferReply({ flags: MessageFlags.Ephemeral })
 
-        const channelConfigs = config.getAllConfigs()
+        const channelConfigs = [...new Map([
+            ...config.getAllConfigs(),
+            ...counting.getAllConfigs()
+        ].map(channelConfig => [channelConfig.channel, channelConfig])).values()]
         if (channelConfigs.length === 0) {
-            return await interaction.editReply('Hiện chưa có kênh chơi nối từ nào được cấu hình.')
+            return await interaction.editReply('Hiện chưa có kênh nối từ hoặc đếm số nào được cấu hình.')
         }
 
         let sentCount = 0
