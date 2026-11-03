@@ -40,9 +40,13 @@ create table if not exists game_state (
 create table if not exists counting_channels (
     channel_id    text primary key,
     guild_id      text not null,
+    last_player_id text,
     current_count text not null default '0'
         check (current_count ~ '^(0|[1-9][0-9]*)$')
 );
+
+-- Nâng cấp kênh đếm số đã tồn tại để giữ luật đổi người khi khởi động lại.
+alter table counting_channels add column if not exists last_player_id text;
 
 create table if not exists rankings (
     guild_id   text not null,

@@ -2,7 +2,7 @@ const { MessageFlags } = require('discord.js')
 const counting = require('../repos/counting')
 
 const handleCountingMessage = async (message) => {
-    const result = await counting.submitCount(message.channelId, message.content)
+    const result = await counting.submitCount(message.channelId, message.content, message.author.id)
     if (!result) return
 
     // Lỗi thả emoji không được ngăn thông báo reset đã lưu xuống DB.
@@ -15,8 +15,11 @@ const handleCountingMessage = async (message) => {
     }
 
     if (!result.correct) {
+        const reason = result.reason === 'same_player'
+            ? 'Bạn không thể đếm hai lần liên tiếp!'
+            : 'Bạn đã đếm sai!'
         await message.reply({
-            content: 'Bạn đã đếm sai! Số đếm đã được reset về **0**. Hãy bắt đầu lại từ **1**.',
+            content: `${reason} Số đếm đã được reset về **0**. Hãy bắt đầu lại từ **1**.`,
             allowedMentions: { parse: [], repliedUser: false },
             flags: MessageFlags.SuppressNotifications
         })

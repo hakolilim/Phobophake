@@ -20,14 +20,15 @@ const loadCountingStates = async () => {
     for (let from = 0; ; from += PAGE_SIZE) {
         const { data, error } = await supabase
             .from('counting_channels')
-            .select('channel_id, guild_id, current_count')
+            .select('channel_id, guild_id, current_count, last_player_id')
             .order('channel_id')
             .range(from, from + PAGE_SIZE - 1)
         if (error) throw new Error('Lỗi nạp counting_channels: ' + error.message)
         for (const row of data || []) {
             nextCache.set(row.channel_id, {
                 guildId: row.guild_id,
-                currentCount: row.current_count
+                currentCount: row.current_count,
+                lastPlayerId: row.last_player_id ?? null
             })
         }
         if (!data || data.length < PAGE_SIZE) break
@@ -45,7 +46,8 @@ const persist = async (channelId, state) => {
     const { error } = await supabase.from('counting_channels').upsert({
         channel_id: channelId,
         guild_id: state.guildId,
-        current_count: state.currentCount
+        current_count: state.currentCount,
+        last_player_id: state.lastPlayerId
     }, { onConflict: 'channel_id' })
     if (error) throw new Error('Lỗi lưu counting_channels: ' + error.message)
     // Chỉ xác nhận lượt đếm sau khi DB đã lưu thành công.
@@ -55,7 +57,7 @@ const persist = async (channelId, state) => {
 const setChannel = (guildId, channelId) => enqueue(channelId, async () => {
     const existing = stateCache.get(channelId)
     if (existing) return { ...existing }
-    const state = { guildId, currentCount: '0' }
+    const state = { guildId, currentCount: '0', lastPlayerId: null }
     await persist(channelId, state)
     return { ...state }
 })
@@ -67,7 +69,7 @@ const unsetChannel = (channelId) => enqueue(channelId, async () => {
     stateCache.delete(channelId)
 })
 
-const submitCount = (channelId, content) => {
+const submitCount = (channelId, content, userId) => {
     const text = content.trim()
     // Bỏ qua trò chuyện; số âm, số thập phân vẫn là một lượt đếm sai.
     if (!/^[+-]?\d+(?:[.,]\d+)?$/.test(text)) return Promise.resolve(null)
@@ -75,10 +77,12 @@ const submitCount = (channelId, content) => {
         const state = stateCache.get(channelId)
         if (!state) return null
         const expected = BigInt(state.currentCount) + 1n
-        const correct = /^\d+$/.test(text) && BigInt(text) === expected
+        const samePlayer = state.lastPlayerId !== null && state.lastPlayerId === userId
+        const correct = !samePlayer && /^\d+$/.test(text) && BigInt(text) === expected
         const currentCount = correct ? expected.toString() : '0'
-        await persist(channelId, { ...state, currentCount })
-        return { correct, currentCount }
+        const lastPlayerId = correct ? userId : null
+        await persist(channelId, { ...state, currentCount, lastPlayerId })
+        return { correct, currentCount, reason: correct ? null : samePlayer ? 'same_player' : 'wrong_number' }
     })
 }
 

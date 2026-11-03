@@ -121,9 +121,9 @@ Render free yêu cầu process mở HTTP port. Bot đã tích hợp Express cho 
 
 ## Minigame đếm số
 
-Chạy lại [`supabase/schema.sql`](supabase/schema.sql) trong Supabase SQL Editor nếu chưa có bảng `counting_channels`, rồi khởi động lại bot để đồng bộ lựa chọn `bot_mode` mới của `/set-channel` và gỡ lệnh `/counting` cũ.
+Chạy lại [`supabase/schema.sql`](supabase/schema.sql) trong Supabase SQL Editor để tạo/nâng cấp bảng `counting_channels` (bổ sung `last_player_id` lưu người đếm gần nhất), rồi khởi động lại bot để đồng bộ lựa chọn `bot_mode` mới của `/set-channel` và gỡ lệnh `/counting` cũ.
 
-Dùng `/set-channel <channel>` và chọn `bot_mode: Couting` để bật đếm số. `bot_mode` còn có `Nối từ (False)` và `Nối từ với bot (True)`; bỏ trống sẽ dùng nối từ không có bot. Chọn chế độ khác sẽ thay thế trò chơi hiện tại trong kênh. Mọi người gửi số nguyên tăng dần **1, 2, 3…**; một người có thể đếm liên tiếp. Bot thả `CORRECT_EMOJI` nếu đúng. Nếu gửi sai số (kể cả số âm hoặc thập phân), bot thả `WRONG_EMOJI`, thông báo bạn đã đếm sai và reset số về **0** để bắt đầu lại từ **1**. Tin nhắn không phải số được bỏ qua. Trò chơi không có xếp hạng và không cộng thống kê nối từ.
+Dùng `/set-channel <channel>` và chọn `bot_mode: Couting` để bật đếm số. `bot_mode` còn có `Nối từ (False)` và `Nối từ với bot (True)`; bỏ trống sẽ dùng nối từ không có bot. Chọn chế độ khác sẽ thay thế trò chơi hiện tại trong kênh. Mọi người gửi số nguyên tăng dần **1, 2, 3…**, phải đổi người sau mỗi lượt đúng. Bot thả `CORRECT_EMOJI` nếu đúng. Nếu gửi sai số (kể cả số âm hoặc thập phân) hoặc một người đếm hai lần liên tiếp, bot thả `WRONG_EMOJI`, thông báo lý do và reset số về **0** để bắt đầu lại từ **1**. Sau khi reset, bất kỳ ai cũng có thể gửi **1** để bắt đầu lại. Tin nhắn không phải số được bỏ qua và không đổi người đếm trước đó. Trò chơi không có xếp hạng và không cộng thống kê nối từ.
 
 Số hiện tại của từng kênh được lưu ngay trên Supabase và nạp lại khi bot khởi động. Chọn lại `Couting` sẽ giữ số hiện tại; `/unset-channel <channel>` (hoặc `?phobo unset` trong kênh chơi) tắt trò chơi và xoá số đã lưu. Bot cần quyền xem kênh, gửi tin nhắn, đọc lịch sử và thả cảm xúc trong kênh chơi.
 

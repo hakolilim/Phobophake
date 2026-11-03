@@ -60,7 +60,7 @@ module.exports = {
             return interaction.editReply(
                 `Đã chọn kênh **${channel.name}** làm kênh đếm số! Số hiện tại: **${state.currentCount}**. ` +
                 `Hãy gửi **${BigInt(state.currentCount) + 1n}** để đếm tiếp. ` +
-                'Đếm sai sẽ reset về 0. Trò chơi không có xếp hạng.'
+                'Đếm sai hoặc một người đếm hai lần liên tiếp sẽ reset về 0. Trò chơi không có xếp hạng.'
             )
         }
 

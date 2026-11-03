@@ -62,16 +62,16 @@ const createRepo = (initialRows = []) => {
 test('correct counts advance, wrong counts reset, chat and other channels are ignored', async () => {
     const { repo, rows, db } = createRepo()
     await repo.setChannel('guild', 'channel')
-    assert.equal((await repo.submitCount('channel', ' 1 ')).correct, true)
-    assert.equal((await repo.submitCount('channel', '2')).correct, true)
-    assert.equal(await repo.submitCount('channel', 'xin chào'), null)
-    assert.equal(await repo.submitCount('other', '1'), null)
+    assert.equal((await repo.submitCount('channel', ' 1 ', 'alice')).correct, true)
+    assert.equal((await repo.submitCount('channel', '2', 'bob')).correct, true)
+    assert.equal(await repo.submitCount('channel', 'xin chào', 'alice'), null)
+    assert.equal(await repo.submitCount('other', '1', 'alice'), null)
     assert.equal(repo.getState('channel').currentCount, '2')
-    assert.deepEqual(await repo.submitCount('channel', '4'), { correct: false, currentCount: '0' })
+    assert.deepEqual(await repo.submitCount('channel', '4', 'alice'), { correct: false, currentCount: '0', reason: 'wrong_number' })
     assert.equal(rows.get('channel').current_count, '0')
-    assert.equal((await repo.submitCount('channel', '1')).correct, true)
+    assert.equal((await repo.submitCount('channel', '1', 'alice')).correct, true)
     for (const wrong of ['1', '0', '-1', '2.5', '2,5']) {
-        assert.equal((await repo.submitCount('channel', wrong)).correct, false)
+        assert.equal((await repo.submitCount('channel', wrong, 'alice')).correct, false)
         assert.equal(repo.getState('channel').currentCount, '0')
     }
     assert.equal(db.writes.length, 10)
@@ -81,44 +81,96 @@ test('simultaneous counts are ordered per channel and channels have independent 
     const { repo } = createRepo()
     await Promise.all([repo.setChannel('guild', 'a'), repo.setChannel('guild', 'b')])
     const results = await Promise.all([
-        repo.submitCount('a', '1'), repo.submitCount('a', '2'),
-        repo.submitCount('a', '3'), repo.submitCount('b', '1')
+        repo.submitCount('a', '1', 'alice'), repo.submitCount('a', '2', 'bob'),
+        repo.submitCount('a', '3', 'alice'), repo.submitCount('b', '1', 'alice')
     ])
     assert.ok(results.every(result => result.correct))
     assert.equal(repo.getState('a').currentCount, '3')
     assert.equal(repo.getState('b').currentCount, '1')
-    const duplicate = await Promise.all([repo.submitCount('a', '4'), repo.submitCount('a', '4')])
+    const duplicate = await Promise.all([repo.submitCount('a', '4', 'bob'), repo.submitCount('a', '4', 'bob')])
     assert.deepEqual(duplicate.map(result => result.correct), [true, false])
     assert.equal(repo.getState('a').currentCount, '0')
+})
+
+test('the previous player survives chat, reconfiguration and restart; any reset clears them', async () => {
+    const { repo, rows } = createRepo()
+    await repo.setChannel('guild', 'channel')
+    await repo.submitCount('channel', '1', 'alice')
+    assert.equal(rows.get('channel').last_player_id, 'alice')
+    await repo.submitCount('channel', 'xin chào', 'bob')
+    await repo.setChannel('guild', 'channel')
+    await repo.loadCountingStates()
+    assert.equal(repo.getState('channel').lastPlayerId, 'alice')
+    assert.deepEqual(await repo.submitCount('channel', '2', 'alice'), {
+        correct: false, currentCount: '0', reason: 'same_player'
+    })
+    assert.equal(rows.get('channel').current_count, '0')
+    assert.equal(rows.get('channel').last_player_id, null)
+    assert.equal(repo.getState('channel').lastPlayerId, null)
+    assert.equal((await repo.submitCount('channel', '1', 'alice')).correct, true)
+    assert.equal((await repo.submitCount('channel', '3', 'bob')).reason, 'wrong_number')
+    assert.equal(rows.get('channel').last_player_id, null)
+    assert.equal((await repo.submitCount('channel', '1', 'alice')).correct, true)
+    assert.equal((await repo.submitCount('channel', '2', 'bob')).correct, true)
+    assert.equal((await repo.submitCount('channel', '3', 'alice')).correct, true)
+})
+
+test('simultaneous counts from one player reset the channel without affecting other channels', async () => {
+    const { repo, rows } = createRepo()
+    await Promise.all([repo.setChannel('guild', 'a'), repo.setChannel('guild', 'b')])
+    const results = await Promise.all([
+        repo.submitCount('a', '1', 'alice'), repo.submitCount('a', '2', 'alice'),
+        repo.submitCount('b', '1', 'alice')
+    ])
+    assert.deepEqual(results.map(result => result.correct), [true, false, true])
+    assert.equal(results[1].reason, 'same_player')
+    assert.equal(rows.get('a').current_count, '0')
+    assert.equal(rows.get('a').last_player_id, null)
+    assert.equal(repo.getState('b').lastPlayerId, 'alice')
+    assert.equal((await repo.submitCount('a', '1', 'alice')).correct, true)
+})
+
+test('a failed repeated-player reset preserves both count and previous player', async () => {
+    const { repo, db, rows } = createRepo()
+    await repo.setChannel('guild', 'channel')
+    await repo.submitCount('channel', '1', 'alice')
+    db.failWrite = true
+    await assert.rejects(repo.submitCount('channel', '2', 'alice'), /write failed/)
+    assert.equal(repo.getState('channel').currentCount, '1')
+    assert.equal(repo.getState('channel').lastPlayerId, 'alice')
+    assert.equal(rows.get('channel').last_player_id, 'alice')
+    db.failWrite = false
+    assert.equal((await repo.submitCount('channel', '2', 'bob')).correct, true)
+    assert.equal(rows.get('channel').last_player_id, 'bob')
 })
 
 test('failed writes preserve the previous state and the queue recovers', async () => {
     const { repo, db, rows } = createRepo()
     await repo.setChannel('guild', 'channel')
     db.failWrite = true
-    await assert.rejects(repo.submitCount('channel', '1'), /write failed/)
+    await assert.rejects(repo.submitCount('channel', '1', 'alice'), /write failed/)
     assert.equal(repo.getState('channel').currentCount, '0')
     assert.equal(rows.get('channel').current_count, '0')
     db.failWrite = false
-    await repo.submitCount('channel', '1')
+    await repo.submitCount('channel', '1', 'alice')
     db.failWrite = true
-    await assert.rejects(repo.submitCount('channel', '9'), /write failed/)
+    await assert.rejects(repo.submitCount('channel', '9', 'alice'), /write failed/)
     assert.equal(repo.getState('channel').currentCount, '1')
     db.failWrite = false
-    assert.equal((await repo.submitCount('channel', '2')).correct, true)
+    assert.equal((await repo.submitCount('channel', '2', 'bob')).correct, true)
 })
 
 test('enabling again preserves the count; disabling removes it and queued counts stop', async () => {
     const { repo, rows, db } = createRepo()
     await repo.setChannel('guild', 'channel')
-    await repo.submitCount('channel', '1')
+    await repo.submitCount('channel', '1', 'alice')
     assert.equal((await repo.setChannel('guild', 'channel')).currentCount, '1')
     db.failDelete = true
     await assert.rejects(repo.unsetChannel('channel'), /delete failed/)
     assert.equal(repo.getState('channel').currentCount, '1')
     db.failDelete = false
     const [, result] = await Promise.all([
-        repo.unsetChannel('channel'), repo.submitCount('channel', '2')
+        repo.unsetChannel('channel'), repo.submitCount('channel', '2', 'bob')
     ])
     assert.equal(result, null)
     assert.equal(repo.getState('channel'), undefined)
@@ -128,12 +180,12 @@ test('enabling again preserves the count; disabling removes it and queued counts
 
 test('bootstrap loads every page and resumes counts exactly beyond JS safe integers', async () => {
     const initial = Array.from({ length: 1001 }, (_, i) => ({
-        guild_id: 'guild', channel_id: `channel-${i}`, current_count: '9007199254740992'
+        guild_id: 'guild', channel_id: `channel-${i}`, current_count: '9007199254740992', last_player_id: 'bob'
     }))
     const { repo, db, rows } = createRepo(initial)
     await repo.loadCountingStates()
     assert.deepEqual(db.pages, [[0, 999], [1000, 1999]])
-    assert.equal((await repo.submitCount('channel-1000', '9007199254740993')).correct, true)
+    assert.equal((await repo.submitCount('channel-1000', '9007199254740993', 'alice')).correct, true)
     assert.equal(rows.get('channel-1000').current_count, '9007199254740993')
     await repo.loadCountingStates()
     assert.equal(repo.getState('channel-1000').currentCount, '9007199254740993')
@@ -157,11 +209,12 @@ test('Discord reactions use configured emoji and a wrong count replies with the 
     const { handleCountingMessage } = loadWithStubs('../modules/counting', { '../repos/counting': repo })
     const reactions = [], replies = []
     const message = {
-        channelId: 'channel', content: '1',
+        channelId: 'channel', content: '1', author: { id: 'alice' },
         react: async emoji => reactions.push(emoji),
         reply: async payload => replies.push(payload)
     }
     await handleCountingMessage(message)
+    message.author.id = 'bob'
     message.content = '3'
     await handleCountingMessage(message)
     assert.deepEqual(reactions, ['👍', '👎'])
@@ -180,7 +233,7 @@ test('reaction failure still announces the saved reset; DB failure never confirm
     const { handleCountingMessage } = loadWithStubs('../modules/counting', { '../repos/counting': repo })
     let replies = 0, reactions = 0
     const message = {
-        channelId: 'channel', content: '8',
+        channelId: 'channel', content: '8', author: { id: 'alice' },
         react: async () => { reactions++; throw new Error('missing reaction permission') },
         reply: async () => { replies++ }
     }
@@ -191,6 +244,28 @@ test('reaction failure still announces the saved reset; DB failure never confirm
     await assert.rejects(handleCountingMessage(message), /write failed/)
     assert.equal(reactions, 1)
     assert.equal(replies, 1)
+})
+
+test('Discord warns about consecutive turns and accepts a new round from the same player', async (t) => {
+    const { repo } = createRepo()
+    await repo.setChannel('guild', 'channel')
+    const { handleCountingMessage } = loadWithStubs('../modules/counting', { '../repos/counting': repo })
+    const replies = [], reactions = []
+    const message = {
+        channelId: 'channel', content: '1', author: { id: 'alice' },
+        react: async emoji => reactions.push(emoji),
+        reply: async payload => replies.push(payload)
+    }
+    await handleCountingMessage(message)
+    message.content = '2'
+    await handleCountingMessage(message)
+    assert.deepEqual(reactions, [process.env.CORRECT_EMOJI || '✅', process.env.WRONG_EMOJI || '❌'])
+    assert.match(replies[0].content, /không thể đếm hai lần liên tiếp.*reset về \*\*0\*\*/)
+    assert.equal(repo.getState('channel').currentCount, '0')
+    message.content = '1'
+    await handleCountingMessage(message)
+    assert.equal(repo.getState('channel').currentCount, '1')
+    assert.equal(replies.length, 1)
 })
 
 const createChannelCommands = () => {
@@ -278,7 +353,7 @@ test('/set-channel preserves both word-chain modes and switches to and from coun
     assert.equal(f.repo.getState('channel').currentCount, '0')
     assert.equal(f.configs.has('channel'), false)
     assert.deepEqual(f.removedGames, ['channel'])
-    await f.repo.submitCount('channel', '1')
+    await f.repo.submitCount('channel', '1', 'alice')
     await f.set.execute(f.interaction)
     assert.equal(f.repo.getState('channel').currentCount, '1')
     assert.match(f.edits.at(-1), /Hãy gửi \*\*2\*\*/)
@@ -321,7 +396,7 @@ test('failed mode writes preserve the previous game and do not confirm the switc
     assert.equal(f.edits.length, 1)
     f.db.failWrite = false
     await f.set.execute(f.interaction)
-    await f.repo.submitCount('channel', '1')
+    await f.repo.submitCount('channel', '1', 'alice')
     f.settings.mode = 'true'
     f.settings.failConfig = true
     await assert.rejects(f.set.execute(f.interaction), /config write failed/)

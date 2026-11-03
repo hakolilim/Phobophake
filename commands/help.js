@@ -6,7 +6,7 @@ const helpEmbed = () => new EmbedBuilder()
     .addFields(
         {
             name: 'Minigame đếm số',
-            value: 'Dùng `/set-channel <channel> bot_mode:Couting` để bật, `/unset-channel <channel>` để tắt. Gửi 1, 2, 3…; đúng được thả cảm xúc, sai reset về 0. Không có xếp hạng.',
+            value: 'Dùng `/set-channel <channel> bot_mode:Couting` để bật, `/unset-channel <channel>` để tắt. Gửi 1, 2, 3…; đúng được thả cảm xúc. Đếm sai hoặc cùng người đếm hai lần liên tiếp sẽ reset về 0. Không có xếp hạng.',
             inline: false
         },
         {
