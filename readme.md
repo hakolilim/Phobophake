@@ -106,7 +106,8 @@ Render free yêu cầu process mở HTTP port. Bot đã tích hợp Express cho 
 
 |          **Lệnh**          |          **Chức năng**          |            **Quyền cần**            |
 |:--------------------------:|:-------------------------------:|:----------------------------------:|
-| /set-channel <channel>     | Cài đặt kênh chơi nối từ        | `MANAGE_GUILD`                     |
+| /set-channel <channel> [bot_mode] | Chọn nối từ (False), nối từ với bot (True) hoặc đếm số (Couting) | `MANAGE_GUILD` |
+| /unset-channel <channel> | Tắt trò chơi trong kênh (nối từ hoặc đếm số) | `MANAGE_GUILD` |
 | /help                      | Xem thông tin và các lệnh BOT   |                                    |
 | !start                     | Bắt đầu lượt chơi nối từ        |                                    |
 | !stop                      | Kết thúc lượt chơi nối từ       | `MANAGE_CHANNEL`                   |
@@ -118,6 +119,14 @@ Render free yêu cầu process mở HTTP port. Bot đã tích hợp Express cho 
 | /broadcast <message>       | Gửi tin đến tất cả kênh nối từ đã cấu hình | Chỉ trong `REPORT_CHANNEL`          |
 | /unblacklist <từ> [action] | Kiểm tra / gỡ từ khỏi blacklist | `MANAGE_GUILD` (trong report channel) |
 
+## Minigame đếm số
+
+Chạy lại [`supabase/schema.sql`](supabase/schema.sql) trong Supabase SQL Editor nếu chưa có bảng `counting_channels`, rồi khởi động lại bot để đồng bộ lựa chọn `bot_mode` mới của `/set-channel` và gỡ lệnh `/counting` cũ.
+
+Dùng `/set-channel <channel>` và chọn `bot_mode: Couting` để bật đếm số. `bot_mode` còn có `Nối từ (False)` và `Nối từ với bot (True)`; bỏ trống sẽ dùng nối từ không có bot. Chọn chế độ khác sẽ thay thế trò chơi hiện tại trong kênh. Mọi người gửi số nguyên tăng dần **1, 2, 3…**; một người có thể đếm liên tiếp. Bot thả `CORRECT_EMOJI` nếu đúng. Nếu gửi sai số (kể cả số âm hoặc thập phân), bot thả `WRONG_EMOJI`, thông báo bạn đã đếm sai và reset số về **0** để bắt đầu lại từ **1**. Tin nhắn không phải số được bỏ qua. Trò chơi không có xếp hạng và không cộng thống kê nối từ.
+
+Số hiện tại của từng kênh được lưu ngay trên Supabase và nạp lại khi bot khởi động. Chọn lại `Couting` sẽ giữ số hiện tại; `/unset-channel <channel>` (hoặc `?phobo unset` trong kênh chơi) tắt trò chơi và xoá số đã lưu. Bot cần quyền xem kênh, gửi tin nhắn, đọc lịch sử và thả cảm xúc trong kênh chơi.
+
 ## Kiến trúc & dữ liệu
 
 Dữ liệu được tổ chức trong các bảng Supabase (xem [`supabase/schema.sql`](supabase/schema.sql)):
@@ -128,6 +137,7 @@ Dữ liệu được tổ chức trong các bảng Supabase (xem [`supabase/sche
 | `report_words` | Blacklist động (từ bị report) |
 | `guild_config` | Kênh nối từ theo từng máy chủ |
 | `game_state` | Trạng thái ván hiện tại theo kênh |
+| `counting_channels` | Kênh đếm số và số hiện tại của từng kênh |
 | `rankings` | Bảng xếp hạng mỗi máy chủ |
 | `global_stats` | Counter `query`, `word_played`, `round_played` |
 | `premium_guilds` | Danh sách máy chủ Premium |

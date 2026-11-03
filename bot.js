@@ -8,6 +8,8 @@ const gameState = require('./repos/gameState')
 const ranking = require('./repos/ranking')
 const stats = require('./repos/stats')
 const premium = require('./repos/premium')
+const counting = require('./repos/counting')
+const { handleCountingMessage } = require('./modules/counting')
 
 
 
@@ -124,6 +126,11 @@ client.on('messageCreate', async message => {
                         content: 'Bạn cần có quyền `MANAGE_GUILD` để dùng lệnh này'
                     })
                 } else {
+                    if (counting.getState(message.channelId)) {
+                        return message.reply({
+                            content: 'Kênh này đang chơi đếm số. Hãy dùng `/unset-channel` trước khi bật nối từ.'
+                        })
+                    }
                     await config.setChannel(message.guildId, message.channelId)
                     return message.reply({
                         content: `Bạn đã chọn kênh **${message.channel.name}** làm kênh nối từ của máy chủ **${message.guild.name}**. Dùng \`!start\` để bắt đầu trò chơi`
@@ -137,17 +144,26 @@ client.on('messageCreate', async message => {
                     })
                 }
                 const guildConfig = config.getConfig(message.channelId)
-                if (!guildConfig) {
+                const countingState = counting.getState(message.channelId)
+                if (!guildConfig && !countingState) {
                     return message.reply({
-                        content: `Kênh **${message.channel.name}** chưa được cài đặt làm kênh nối từ!`
+                        content: `Kênh **${message.channel.name}** chưa được cài đặt trò chơi!`
                     })
                 }
-                await config.unsetChannel(message.channelId)
-                await gameState.removeGameState(message.channelId)
+                if (countingState) await counting.unsetChannel(message.channelId)
+                if (guildConfig) {
+                    await config.unsetChannel(message.channelId)
+                    await gameState.removeGameState(message.channelId)
+                }
                 return message.reply({
-                    content: `Đã xoá cài đặt kênh nối từ **${message.channel.name}** của máy chủ **${message.guild.name}**!`
+                    content: `Đã xoá cài đặt kênh ${countingState ? 'đếm số' : 'nối từ'} **${message.channel.name}** của máy chủ **${message.guild.name}**!`
                 })
             }
+        }
+
+        if (counting.getState(message.channelId)) {
+            await handleCountingMessage(message)
+            return
         }
 
         const guildConfig = config.getConfig(message.channel.id)
@@ -361,6 +377,7 @@ async function bootstrap() {
     console.log('[WARNING] Khởi động: nạp dữ liệu từ Supabase...')
     await words.loadDictionary()
     await config.loadConfig()
+    await counting.loadCountingStates()
     await gameState.loadGameStates()
     await ranking.loadRankings()
     await stats.load()

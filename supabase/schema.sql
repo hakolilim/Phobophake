@@ -35,6 +35,15 @@ create table if not exists game_state (
     words               jsonb not null default '[]'::jsonb
 );
 
+-- Kênh đếm số: cấu hình và số hiện tại được lưu cùng nhau, không lưu xếp hạng.
+-- Dùng text + BigInt trong Node để số lớn không bị làm tròn khi truyền JSON.
+create table if not exists counting_channels (
+    channel_id    text primary key,
+    guild_id      text not null,
+    current_count text not null default '0'
+        check (current_count ~ '^(0|[1-9][0-9]*)$')
+);
+
 create table if not exists rankings (
     guild_id   text not null,
     user_id    text not null,

@@ -5,13 +5,18 @@ const helpEmbed = () => new EmbedBuilder()
     .setDescription(':crystal_ball: Hướng dẫn sử dụng BOT')
     .addFields(
         {
+            name: 'Minigame đếm số',
+            value: 'Dùng `/set-channel <channel> bot_mode:Couting` để bật, `/unset-channel <channel>` để tắt. Gửi 1, 2, 3…; đúng được thả cảm xúc, sai reset về 0. Không có xếp hạng.',
+            inline: false
+        },
+        {
             name: 'Cài đặt kênh chơi nối từ',
             value: 'Dùng lệnh slash `/set-channel <channel>` hoặc dùng `?phobo set` trong kênh nối từ.',
             inline: true
         },
         {
-            name: 'Xoá cài đặt kênh nối từ',
-            value: 'Dùng lệnh slash `/unset-channel <channel>` hoặc dùng `?phobo unset` trong kênh nối từ.',
+            name: 'Xoá cài đặt kênh trò chơi',
+            value: 'Dùng lệnh slash `/unset-channel <channel>` hoặc dùng `?phobo unset` trong kênh nối từ/đếm số.',
             inline: true
         },
         {

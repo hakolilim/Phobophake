@@ -64,13 +64,13 @@ const getAllConfigs = () => {
  * @param {Boolean} botMode
  */
 const setChannel = async (guildId, channelId, botMode = false) => {
-    configCache[channelId] = { guildId, channel: channelId, botMode }
     const { error } = await supabase
         .from('guild_config')
         .upsert({ guild_id: guildId, channel_id: channelId, bot_mode: botMode }, { onConflict: 'channel_id' })
     if (error) {
-        console.error('[ERROR] setChannel:', error.message)
+        throw new Error('Lỗi lưu guild_config: ' + error.message)
     }
+    configCache[channelId] = { guildId, channel: channelId, botMode }
 }
 
 /**
@@ -78,14 +78,14 @@ const setChannel = async (guildId, channelId, botMode = false) => {
  * @param {String} channelId
  */
 const unsetChannel = async (channelId) => {
-    delete configCache[channelId]
     const { error } = await supabase
         .from('guild_config')
         .delete()
         .eq('channel_id', channelId)
     if (error) {
-        console.error('[ERROR] unsetChannel:', error.message)
+        throw new Error('Lỗi xoá guild_config: ' + error.message)
     }
+    delete configCache[channelId]
 }
 
 module.exports = {

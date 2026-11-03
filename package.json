@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node bot",
     "lint": "node -e \"require('./bot')\"",
-    "test": "node -e \"require('./bot')\""
+    "test": "node --test"
   },
   "repository": {
     "type": "git",

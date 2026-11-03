@@ -1,14 +1,15 @@
 const { SlashCommandBuilder, ChannelType, PermissionsBitField, MessageFlags } = require('discord.js')
 const config = require('../repos/config')
 const gameState = require('../repos/gameState')
+const counting = require('../repos/counting')
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('unset-channel')
-        .setDescription('Xoá cài đặt kênh chơi nối từ')
+        .setDescription('Xoá cài đặt kênh chơi nối từ hoặc đếm số')
         .addChannelOption(option =>
             option.setName('channel')
-                .setDescription('Kênh cần xoá cài đặt nối từ')
+                .setDescription('Kênh cần xoá cài đặt trò chơi')
                 .addChannelTypes(ChannelType.GuildText)
                 .setRequired(true)),
     async execute(interaction) {
@@ -22,21 +23,25 @@ module.exports = {
 
         const channel = interaction.options.getChannel('channel')
         const guildConfig = config.getConfig(channel.id)
+        const countingState = counting.getState(channel.id)
 
-        if (!guildConfig) {
+        if (!guildConfig && !countingState) {
             await interaction.reply({
-                content: `Kênh **${channel.name}** chưa được cài đặt làm kênh nối từ!`,
+                content: `Kênh **${channel.name}** chưa được cài đặt trò chơi!`,
                 flags: MessageFlags.Ephemeral
             })
             return
         }
 
-        await config.unsetChannel(channel.id)
-        await gameState.removeGameState(channel.id)
+        await interaction.deferReply()
+        if (countingState) await counting.unsetChannel(channel.id)
+        if (guildConfig) {
+            await config.unsetChannel(channel.id)
+            await gameState.removeGameState(channel.id)
+        }
 
-        await interaction.reply({
-            content: `Đã xoá cài đặt kênh nối từ **${channel.name}** của máy chủ **${interaction.member.guild.name}**!`,
-            flags: MessageFlags.SuppressNotifications
-        })
+        await interaction.editReply(
+            `Đã xoá cài đặt kênh ${countingState ? 'đếm số' : 'nối từ'} **${channel.name}** của máy chủ **${interaction.guild.name}**!`
+        )
     }
 }
