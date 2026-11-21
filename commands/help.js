@@ -1,111 +1,60 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js')
 
 const helpEmbed = () => new EmbedBuilder()
-    .setColor(13250094)
-    .setDescription(':crystal_ball: Hướng dẫn sử dụng BOT')
+    .setColor(0xf97316)
+    .setTitle('OrenjiNeko — Hướng dẫn sử dụng')
+    .setDescription('Nối từ tiếng Việt, đếm số và trò chuyện với AI ngay trong Discord.')
     .addFields(
         {
-            name: 'Minigame đếm số',
-            value: 'Dùng `/set-channel <channel> bot_mode:Couting` để bật, `/unset-channel <channel>` để tắt. Gửi 1, 2, 3…; đúng được thả cảm xúc. Đếm sai hoặc cùng người đếm hai lần liên tiếp sẽ reset về 0. Không có xếp hạng.',
-            inline: false
+            name: 'Cài đặt kênh trò chơi',
+            value: '`/set-channel channel:#kênh` để chơi nối từ; chọn `bot_mode:True` để nối với bot hoặc `bot_mode:Couting` để đếm số. Có thể cài nhiều kênh trong một máy chủ. Cần quyền **Quản lý máy chủ (MANAGE_GUILD)**.'
         },
         {
-            name: 'Cài đặt kênh chơi nối từ',
-            value: 'Dùng lệnh slash `/set-channel <channel>` hoặc dùng `?phobo set` trong kênh nối từ.',
-            inline: true
+            name: 'Cách chơi nối từ',
+            value: 'Gõ `!start` trong kênh đã cài đặt. Mỗi lượt gửi một cụm **2 tiếng**, tiếng đầu trùng tiếng cuối của từ trước; không dùng lại từ trong ván và không đi hai lượt liên tiếp. Ví dụ: `học sinh` → `sinh nhật`. Từ phải có trong từ điển và không bị chặn. Người đi cuối thắng khi không còn từ hợp lệ để nối; bot tự mở ván mới.'
         },
         {
-            name: 'Xoá cài đặt kênh trò chơi',
-            value: 'Dùng lệnh slash `/unset-channel <channel>` hoặc dùng `?phobo unset` trong kênh nối từ/đếm số.',
-            inline: true
+            name: 'Bắt đầu hoặc đặt lại ván',
+            value: '`!start` bắt đầu nếu chưa có ván; `!stop` kết thúc ván đang chạy và **bắt đầu ván mới**. Mọi thành viên có thể gửi tin nhắn trong kênh nối từ đều dùng được; hãy tránh đặt lại ván khi người khác đang chơi.'
         },
         {
-            name: 'Cho bot rời máy chủ',
-            value: 'Dùng `/leave` (cần quyền **MANAGE_GUILD**) để rời máy chủ hiện tại. Xoá toàn bộ cấu hình, trạng thái trò chơi, bảng xếp hạng và Premium của máy chủ được chọn trước khi bot rời.',
-            inline: false
+            name: 'Cách chơi đếm số',
+            value: 'Sau khi bật chế độ **Couting**, gửi `1`, `2`, `3`… và luân phiên người đếm. Đếm sai hoặc một người đếm hai lần liên tiếp sẽ đặt lại về **0**. Không cần `!start`; trò chơi này không có bảng xếp hạng.'
         },
         {
-            name: 'Bắt đầu lượt chơi',
-            value: 'Dùng lệnh `!start` trong kênh chơi nối từ',
-            inline: true
+            name: 'Xếp hạng và thông tin',
+            value: '`/rank`: bảng xếp hạng nối từ của máy chủ.\n`/me`: thống kê nối từ cá nhân trong máy chủ.\n`/stats`: thống kê toàn bot.\n`/server`: thông tin máy chủ và trạng thái Premium.\n`/ping`: kiểm tra độ trễ. `/help`: xem hướng dẫn này.'
         },
         {
-            name: 'Dừng lượt chơi',
-            value: 'Dùng lệnh `!stop` trong kênh chơi nối từ, bất cứ member nào trong server cũng có thể dùng!',
-            inline: true
+            name: 'Báo cáo hoặc đề xuất từ',
+            value: '`/report word:<cụm từ> type:report reason:<lý do>` để báo từ không phù hợp; chọn `type:add` để đề xuất từ mới. Cụm từ cần đúng 2 tiếng. Tính năng cần kênh báo cáo được cấu hình; người duyệt xử lý tại đó và bot có thể nhắn riêng kết quả cho bạn.'
         },
         {
-            name: 'Xem thống kê của BOT',
-            value: 'Dùng lệnh slash `/stats`',
-            inline: true
+            name: 'Trò chuyện với AI',
+            value: '`/ai message:<câu hỏi> [system:<chỉ dẫn>] [visible:false]` (khi AI được cấu hình). Bot gửi câu hỏi cùng tối đa **10 tin nhắn gần nhất và 4 ảnh** trong kênh tới nhà cung cấp AI. Phản hồi **công khai mặc định**; `visible:false` chỉ ẩn phản hồi với người khác, vẫn gửi ngữ cảnh. Tránh chia sẻ thông tin nhạy cảm và kiểm tra lại câu trả lời.'
         },
         {
-            name: 'Xem bảng xếp hạng server',
-            value: 'Dùng lệnh slash `/rank`',
-            inline: true
+            name: 'Tắt kênh hoặc cho bot rời máy chủ',
+            value: '`/unset-channel channel:#kênh`: xoá cấu hình và trạng thái trò chơi của kênh. `/leave`: xoá cấu hình, trạng thái trò chơi, xếp hạng và Premium của máy chủ hiện tại rồi cho bot rời. Cả hai cần **MANAGE_GUILD**. Lệnh prefix tương đương cho kênh hiện tại: `?phobo set`, `?phobo unset`.'
         },
         {
-            name: 'Xem thống kê cá nhân',
-            value: 'Dùng lệnh slash `/me`',
-            inline: true
+            name: 'Công cụ tại kênh báo cáo',
+            value: '`/unblacklist word:<từ> action:check`: kiểm tra từ bị chặn; `action:remove` để gỡ (gỡ cần **MANAGE_GUILD**). `/broadcast message:<nội dung>`: gửi tới mọi kênh nối từ và đếm số đã cài, mọi thành viên trong kênh báo cáo đều dùng được. `/leave guild:<ID hoặc tên>`: chọn máy chủ khác cho bot rời (cần **MANAGE_GUILD** tại máy chủ gọi lệnh).'
         },
         {
-            name: 'Report từ sai trong từ điển',
-            value: 'Dùng lệnh slash `/report <từ> [lý do]`, bất cứ member nào trong server cũng có thể dùng',
-            inline: true
+            name: 'Hỗ trợ và mã nguồn',
+            value: 'Liên hệ người duy trì **hakolilim** tại [Support Discord Server](https://discord.gg/NC7Ks2c5wE).\n[Mã nguồn OrenjiNeko](https://github.com/hakolilim/Phobophake)'
         },
         {
-            name: 'Quản lý blacklist',
-            value: 'Dùng lệnh slash `/unblacklist <từ> [check|remove]` trong kênh báo cáo',
-            inline: true
-        },
-        {
-            name: 'Xem thông tin server, check Premium',
-            value: 'Dùng lệnh slash `/server`',
-            inline: true
-        },
-        {
-            name: 'Ai có thể dùng lệnh set-channel?',
-            value: 'Người dùng có quyền **MANAGE_GUILD**',
-            inline: true
-        },
-        {
-            name: 'Ai có thể dùng lệnh !start',
-            value: 'Người dùng có quyền xem và gửi tin nhắn vào kênh nối từ',
-            inline: true
-        },
-        {
-            name: 'Ai có thể dùng lệnh !stop',
-            value: 'Người dùng có quyền xem và gửi tin nhắn vào kênh nối từ',
-            inline: true
-        },
-        {
-            name: 'Khi nào trò chơi kết thúc?',
-            value: 'Khi không còn từ nào trong từ điển có thể nối tiếp từ hiện tại hoặc dùng lệnh !stop',
-            inline: true
-        },
-        {
-            name: ':robot: Invite/Vote',
-            value: '[phobobot.xyz](https://phobobot.xyz)',
-            inline: true
-        },
-        {
-            name: ':pencil: Đóng góp từ/Hỗ trợ',
-            value: '[dsc.gg/phobodev](https://dsc.gg/phobodev)',
-            inline: true
-        },
-        {
-            name: ':information_source: Mã nguồn trò chơi',
-            value: '[github.com/lvdat/bot-noi-tu](https://github.com/lvdat/bot-noi-tu)',
-            inline: true
-        },
-
+            name: 'Chính sách và điều khoản',
+            value: '[Chính sách quyền riêng tư](https://github.com/hakolilim/Phobophake/blob/main/PRIVACY_POLICY.md) · [Điều khoản dịch vụ](https://github.com/hakolilim/Phobophake/blob/main/TERMS_OF_SERVICE.md)'
+        }
     )
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('help')
-        .setDescription('Xem hướng dẫn sử dụng BOT'),
+        .setDescription('Xem hướng dẫn sử dụng OrenjiNeko'),
     async execute(interaction) {
         await interaction.reply({
             embeds: [helpEmbed()],

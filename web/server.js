@@ -2,6 +2,7 @@ const express = require('express')
 const stats = require('../repos/stats')
 const ranking = require('../repos/ranking')
 const dictionary = require('../repos/words')
+const { legalPages } = require('./legal')
 
 const startedAt = Date.now()
 
@@ -81,10 +82,10 @@ function getStatus(client) {
 function renderStatusPage(data) {
     const statusColor = data.ready ? '#22c55e' : '#f59e0b'
     const statusLabel = data.ready ? 'Online' : 'Booting'
-    const botName = data.bot.tag || 'Phở Bò'
+    const botName = data.bot.tag || 'OrenjiNeko'
     const avatar = data.bot.avatar
         ? `<img class="avatar" src="${data.bot.avatar}" alt="avatar" />`
-        : `<div class="avatar placeholder">🍜</div>`
+        : `<div class="avatar placeholder">🍊</div>`
 
     return `<!DOCTYPE html>
 <html lang="vi">
@@ -92,7 +93,7 @@ function renderStatusPage(data) {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="refresh" content="30" />
-  <title>${botName} — Status</title>
+  <title>${escapeHtml(botName)} — Status</title>
   <style>
     :root {
       --bg: #0f1419;
@@ -224,6 +225,8 @@ function renderStatusPage(data) {
     </div>
     <p class="footer">
       <a href="/health">/health</a> · <a href="/api/status">/api/status</a> · <a href="/suggest">/suggest</a><br />
+      <a href="/privacy-policy">Quyền riêng tư</a> · <a href="/terms-of-service">Điều khoản dịch vụ</a><br />
+      <a href="https://discord.gg/NC7Ks2c5wE">Hỗ trợ</a> · <a href="https://github.com/hakolilim/Phobophake">GitHub</a><br />
       Auto-refresh 30s · ${escapeHtml(data.timestamp)}
     </p>
   </main>
@@ -252,7 +255,7 @@ function renderSuggestPage() {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Phở Bò — Gợi ý từ nối tiếp</title>
+  <title>OrenjiNeko — Gợi ý từ nối tiếp</title>
   <style>
     :root {
       --bg: #0f1419;
@@ -372,7 +375,7 @@ function renderSuggestPage() {
 </head>
 <body>
   <main class="card">
-    <h1><span>🍜</span> Gợi ý từ nối tiếp</h1>
+    <h1><span>🍊</span> Gợi ý từ nối tiếp</h1>
     <p class="sub">Nhập một từ, bot sẽ gợi ý các từ có thể nối tiếp theo</p>
     <div class="form-row">
       <input id="wordInput" type="text" placeholder="Ví dụ: phở bò" autofocus />
@@ -383,7 +386,8 @@ function renderSuggestPage() {
     <div id="results" class="results"></div>
     <div id="empty" class="empty" style="display:none">Không tìm thấy từ nào có thể nối tiếp.</div>
     <p class="footer">
-      <a href="/">← Trạng thái bot</a> · <a href="/api/suggest">/api/suggest</a>
+      <a href="/">Trạng thái bot</a> · <a href="/api/suggest">/api/suggest</a><br />
+      <a href="/privacy-policy">Quyền riêng tư</a> · <a href="/terms-of-service">Điều khoản dịch vụ</a>
     </p>
   </main>
   <script>
@@ -449,18 +453,14 @@ function renderSuggestPage() {
 </html>`
 }
 
-/**
- * Start Express web server for Render health checks + simple status UI.
- * Call from events/ready.js after slash commands are synchronized.
- *
- * @param {import('discord.js').Client} client
- * @returns {import('http').Server}
- */
-
-
-function startWebServer(client) {
+function createWebApp(client) {
     const app = express()
-    const port = Number(process.env.PORT) || 3000
+
+    for (const [route, html] of legalPages) {
+        app.get(route, (_req, res) => {
+            res.type('html').send(html)
+        })
+    }
 
     app.get('/health', (_req, res) => {
         res.status(200).json({ status: 'ok' })
@@ -487,6 +487,17 @@ function startWebServer(client) {
         res.type('html').send(renderSuggestPage())
     })
 
+    return app
+}
+
+/**
+ * Start the public web pages and health checks after Discord commands are synced.
+ * @param {import('discord.js').Client} client
+ * @returns {import('http').Server}
+ */
+function startWebServer(client) {
+    const app = createWebApp(client)
+    const port = Number(process.env.PORT) || 3000
     const server = app.listen(port, '0.0.0.0', () => {
         console.log(`[OK] Web server listening on 0.0.0.0:${port}`)
     })
@@ -498,4 +509,4 @@ function startWebServer(client) {
     return server
 }
 
-module.exports = { startWebServer }
+module.exports = { createWebApp, startWebServer }
