@@ -1,6 +1,7 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js')
 const axios = require('axios')
 const readline = require('readline')
+const { createLatexPreview } = require('../modules/ai_latex')
 const {
     buildContextMessages,
     hasImageContent,
@@ -275,6 +276,35 @@ const createStreamer = (interaction, question, isPublic) => {
                         embeds: [aiEmbed(question, chunks[i], { partIndex: i, partTotal: total })],
                         flags: replyFlags
                     })
+                }
+
+                // Chỉ render khi chốt stream, sau khi gửi đầy đủ văn bản gốc.
+                // Preview dùng cùng queue và cùng quyền riêng tư với câu trả lời.
+                try {
+                    const preview = await createLatexPreview(text)
+                    const content = preview.skipped > 0
+                        ? `⚠️ ${preview.skipped} công thức không được preview (không hợp lệ hoặc vượt giới hạn). Xem LaTeX gốc trong câu trả lời.`
+                        : undefined
+                    if (preview.image) {
+                        await interaction.followUp({
+                            content,
+                            embeds: [new EmbedBuilder()
+                                .setColor(13250094)
+                                .setTitle('🔎 Preview LaTeX')
+                                .setImage('attachment://ai-latex.png')
+                                .setFooter({ text: `${preview.rendered} công thức · theo thứ tự xuất hiện, bỏ trùng` })],
+                            files: [{ attachment: preview.image, name: 'ai-latex.png' }],
+                            flags: replyFlags
+                        })
+                    } else if (content) {
+                        await interaction.followUp({ content, flags: replyFlags })
+                    }
+                } catch (err) {
+                    logError(err)
+                    await interaction.followUp({
+                        content: '⚠️ Không thể tạo preview LaTeX. Bạn vẫn có thể xem LaTeX gốc trong câu trả lời.',
+                        flags: replyFlags
+                    }).catch(logError)
                 }
             })
             .catch(logError)

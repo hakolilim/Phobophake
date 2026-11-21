@@ -143,6 +143,8 @@ Câu hỏi và câu trả lời **công khai mặc định**. Chọn `visible:fa
 
 Câu trả lời được cập nhật dần khi streaming và tách thành nhiều tin nhắn nếu dài. Provider trả kết quả không streaming vẫn được hỗ trợ; một số lỗi do model không nhận ảnh sẽ được thử lại bằng văn bản kèm thông báo. Nội dung AI có thể sai, cần kiểm tra trước khi sử dụng. Chi tiết xử lý và lưu giữ dữ liệu xem [Privacy Policy](PRIVACY_POLICY.md).
 
+Khi câu trả lời có LaTeX, bot tự gửi thêm **ảnh preview công thức** sau khi streaming kết thúc, đồng thời giữ nguyên văn bản gốc để sao chép. Hỗ trợ `$...$`, `$$...$$`, `\(...\)`, `\[...\]` và code block `latex`/`math`; bỏ qua code block thông thường, inline code và công thức trùng. Preview được render tại bot bằng MathJax + Sharp, không cần API hay cấu hình thêm; `visible:false` cũng áp dụng cho ảnh. Mỗi câu trả lời preview tối đa **12 công thức**, mỗi công thức tối đa **2000 ký tự**. Công thức sai hoặc vượt giới hạn sẽ được bỏ qua kèm thông báo, không làm mất nội dung trả lời. Khi stream bị ngắt, bot vẫn preview các công thức đã hoàn chỉnh trong phần nhận được.
+
 ## Trang web và API
 
 Web server dùng `PORT` (mặc định `3000`). Khi chạy tại máy cá nhân, mở `http://localhost:3000`; khi triển khai, dùng tên miền của dịch vụ đang chạy bot.

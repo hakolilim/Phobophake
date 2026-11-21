@@ -220,6 +220,13 @@ Embed field value giới hạn 1024 chars, nên response dài được tách th�
 - `clip()` chỉ dùng khi **đang stream** để giữ field value ≤ 1024, kèm dòng *"⏳ đang soạn tiếp..."*. Khi stream xong, `splitChunks()` tách đầy đủ, nội dung không bị mất.
 - `abort()` cũng dùng `publish()`: nếu phần đã stream dài hơn 1024 chars thì tách thành nhiều phần, cảnh báo ⚠️ gắn vào message cuối cùng.
 
+**Preview LaTeX (`modules/ai_latex.js`):**
+- Sau khi `publish()` gửi đầy đủ văn bản, tự nhận diện `$...$`, `$$...$$`, `\(...\)`, `\[...\]` và fenced code block `latex`/`math`; bỏ qua inline code, code block thông thường và công thức chưa đóng delimiter.
+- Giữ nguyên LaTeX gốc trong phần trả lời. Công thức được render tại bot bằng MathJax + Sharp thành một PNG đính kèm trong followUp, không dùng dịch vụ render bên ngoài hay env mới.
+- Loại trùng theo nội dung công thức; tối đa 12 công thức, mỗi công thức tối đa 2000 ký tự. Công thức lỗi/vượt giới hạn được bỏ qua và báo số lượng; lỗi preview không làm mất văn bản đã gửi.
+- Preview và cảnh báo dùng cùng queue serialized và cùng `MessageFlags.Ephemeral` với câu trả lời khi `visible:false`. `abort()` cũng preview các công thức hoàn chỉnh đã nhận được.
+- MathJax chỉ bật các package `base`, `ams`, `newcommand`, giới hạn macro/buffer và dùng document riêng cho mỗi công thức để tránh rò macro giữa các lượt.
+
 **Cấu hình:**
 - `AI_BASE_URL`: Base URL cho Chat Completions API. Nếu unset, dùng OpenAI mặc định
 - `AI_API_KEY`: API key. Cần thiết nếu dùng OpenAI; có thể bỏ trống cho local models (Ollama, vLLM)

@@ -31,7 +31,7 @@ const helpEmbed = () => new EmbedBuilder()
         },
         {
             name: 'Trò chuyện với AI',
-            value: '`/ai message:<câu hỏi> [system:<chỉ dẫn>] [visible:false]` (khi AI được cấu hình). Bot gửi câu hỏi cùng tối đa **10 tin nhắn gần nhất và 4 ảnh** trong kênh tới nhà cung cấp AI. Phản hồi **công khai mặc định**; `visible:false` chỉ ẩn phản hồi với người khác, vẫn gửi ngữ cảnh. Tránh chia sẻ thông tin nhạy cảm và kiểm tra lại câu trả lời.'
+            value: '`/ai message:<câu hỏi> [system:<chỉ dẫn>] [visible:false]` (khi AI được cấu hình). Bot gửi câu hỏi cùng tối đa **10 tin nhắn gần nhất và 4 ảnh** trong kênh tới nhà cung cấp AI. Phản hồi có LaTeX sẽ kèm **ảnh preview công thức** sau khi soạn xong. Phản hồi **công khai mặc định**; `visible:false` chỉ ẩn phản hồi với người khác, vẫn gửi ngữ cảnh. Tránh chia sẻ thông tin nhạy cảm và kiểm tra lại câu trả lời.'
         },
         {
             name: 'Tắt kênh hoặc cho bot rời máy chủ',
