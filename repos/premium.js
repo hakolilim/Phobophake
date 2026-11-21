@@ -34,8 +34,15 @@ const isPremium = (guildId) => {
     return premiumCache.includes(guildId)
 }
 
+const removeGuild = async (guildId) => {
+    const { error } = await supabase.from('premium_guilds').delete().eq('guild_id', guildId)
+    if (error) throw new Error('Lỗi xoá premium_guilds: ' + error.message)
+    premiumCache = premiumCache.filter(id => id !== guildId)
+}
+
 module.exports = {
     loadPremium,
     getPremiumList,
-    isPremium
+    isPremium,
+    removeGuild
 }

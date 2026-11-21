@@ -20,6 +20,11 @@ const helpEmbed = () => new EmbedBuilder()
             inline: true
         },
         {
+            name: 'Cho bot rời máy chủ',
+            value: 'Dùng `/leave` (cần quyền **MANAGE_GUILD**) để rời máy chủ hiện tại. Xoá toàn bộ cấu hình, trạng thái trò chơi, bảng xếp hạng và Premium của máy chủ được chọn trước khi bot rời.',
+            inline: false
+        },
+        {
             name: 'Bắt đầu lượt chơi',
             value: 'Dùng lệnh `!start` trong kênh chơi nối từ',
             inline: true
@@ -71,7 +76,7 @@ const helpEmbed = () => new EmbedBuilder()
         },
         {
             name: 'Ai có thể dùng lệnh !stop',
-            value: 'Người dùng có quyền **MANAGE_CHANNEL** trong kênh nối từ',
+            value: 'Người dùng có quyền xem và gửi tin nhắn vào kênh nối từ',
             inline: true
         },
         {

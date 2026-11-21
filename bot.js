@@ -10,6 +10,7 @@ const stats = require('./repos/stats')
 const premium = require('./repos/premium')
 const counting = require('./repos/counting')
 const { handleCountingMessage } = require('./modules/counting')
+const guildActivity = require('./modules/guildActivity')
 
 
 
@@ -55,9 +56,14 @@ for (const file of eventFiles) {
 }
 
 // LOGIC GAME
+client.on('guildCreate', guild => guildActivity.allowGuild(guild.id))
+
 client.on('messageCreate', async message => {
     if (message.author.bot) return // detect mess from BOT
     if (!message.guild) return // bỏ qua DM
+
+    const finishOperation = guildActivity.beginOperation(message.guildId)
+    if (!finishOperation) return
 
     let queryCount = 0
 
@@ -340,20 +346,44 @@ client.on('messageCreate', async message => {
         console.error('[ERROR] messageCreate:', err)
     } finally {
         if (queryCount > 0) stats.addQuery(queryCount)
+        finishOperation()
     }
 })
 // END LOGIC GAME
 
 // The interactionCreate event directly here, as this is the heart of the robot.
 client.on('interactionCreate', async (interaction) => {
+    if (interaction.isAutocomplete()) {
+        const command = client.commands.get(interaction.commandName)
+        try {
+            if (command?.autocomplete) await command.autocomplete(interaction, client)
+            else await interaction.respond([])
+        } catch (error) {
+            console.error('[ERROR] autocomplete:', error)
+            if (!interaction.responded) {
+                await interaction.respond([]).catch(err => console.error('[ERROR] autocomplete.respond:', err))
+            }
+        }
+        return
+    }
     if (!interaction.isCommand()) return
     const command = client.commands.get(interaction.commandName)
     if (!command) return
 
+    // /leave tự giữ khoá; không tính chính lệnh này vào các lượt cần chờ.
+    const finishOperation = interaction.commandName === 'leave'
+        ? null : guildActivity.beginOperation(interaction.guildId)
+
     // We log when a user makes a command
     try {
+        if (interaction.commandName !== 'leave' && !finishOperation) {
+            return await interaction.reply({
+                content: 'Bot đang xoá dữ liệu và rời máy chủ này. Vui lòng thử lại sau.',
+                flags: MessageFlags.Ephemeral
+            })
+        }
         await console.log(
-            `[${interaction.guild.name}] ${interaction.user.username} used /${interaction.commandName}`
+            `[${interaction.guild?.name ?? 'DM'}] ${interaction.user.username} used /${interaction.commandName}`
         )
         await command.execute(interaction, client)
         // But if there is a mistake,
@@ -369,6 +399,8 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.replied || interaction.deferred
             ? interaction.followUp(errorReply)
             : interaction.reply(errorReply)
+    } finally {
+        finishOperation?.()
     }
 })
 

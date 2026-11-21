@@ -88,10 +88,19 @@ const unsetChannel = async (channelId) => {
     delete configCache[channelId]
 }
 
+const removeGuild = async (guildId) => {
+    const { error } = await supabase.from('guild_config').delete().eq('guild_id', guildId)
+    if (error) throw new Error('Lỗi xoá guild_config: ' + error.message)
+    for (const [channelId, entry] of Object.entries(configCache)) {
+        if (entry.guildId === guildId) delete configCache[channelId]
+    }
+}
+
 module.exports = {
     loadConfig,
     getConfig,
     getAllConfigs,
     setChannel,
-    unsetChannel
+    unsetChannel,
+    removeGuild
 }

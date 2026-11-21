@@ -86,6 +86,7 @@ Lệnh này chỉ dùng được trong `REPORT_CHANNEL`; bất kỳ thành viên
 
 ## Các lệnh khác
 
+- `/leave [guild]` - cho bot rời server hiện tại nếu bỏ trống `guild` (yêu cầu `MANAGE_GUILD`, chỉ dùng trong guild). Tuỳ chọn `guild` chỉ được dùng trong `REPORT_CHANNEL` đã cấu hình: autocomplete hiển thị tối đa 25 guild từ cache Discord, lọc theo tên (không phân biệt hoa/thường, dấu tiếng Việt) hoặc ID; mỗi gợi ý kèm ID và dùng ID làm value. Có thể nhập trực tiếp ID Discord 17–20 chữ số hoặc tên đầy đủ duy nhất; tên trùng phải chọn gợi ý/ID. Không trả danh sách guild khi sai kênh hoặc thiếu quyền. `bot.js` chuyển autocomplete interaction đến `command.autocomplete()`. Bot phải truy cập được guild đích. Quyền `MANAGE_GUILD` được kiểm tra tại server gọi lệnh. Xoá dữ liệu của guild đích trên Supabase và cache RAM: `game_state` theo các kênh của guild, `counting_channels`, `rankings`, `premium_guilds`, `guild_config`. Không xoá từ điển/blacklist hay thống kê toàn cục. Nếu xoá thất bại, bot chưa rời; có thể gọi lại với cùng `guild` để hoàn tất. `modules/guildActivity.js` chặn lượt mới và chờ lượt đang xử lý của guild đích xong trước khi xoá để dữ liệu không bị tạo lại. Mọi thao tác DB đi qua `repos/guild.js` và các repo tương ứng; không cần migration SQL.
 - `/help` - hướng dẫn sử dụng bot
 - `/stats` - thống kê toàn cầu của bot (query, word-played, round-played)
 - `/rank` - bảng xếp hạng nối từ trong server hiện tại

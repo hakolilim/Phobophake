@@ -123,13 +123,24 @@ const recordWord = async (channelId, word, playerId, playerName) => {
  * @param {String} channelId
  */
 const removeGameState = async (channelId) => {
-    delete stateCache[channelId]
     const { error } = await supabase
         .from('game_state')
         .delete()
         .eq('channel_id', channelId)
     if (error) {
-        console.error('[ERROR] gameState.removeGameState:', error.message)
+        throw new Error('Lỗi xoá game_state: ' + error.message)
+    }
+    delete stateCache[channelId]
+}
+
+// Chia batch để danh sách channel_id không vượt giới hạn độ dài URL PostgREST.
+const removeGameStates = async (channelIds) => {
+    const ids = [...new Set(channelIds)]
+    for (let from = 0; from < ids.length; from += 100) {
+        const batch = ids.slice(from, from + 100)
+        const { error } = await supabase.from('game_state').delete().in('channel_id', batch)
+        if (error) throw new Error('Lỗi xoá game_state: ' + error.message)
+        for (const channelId of batch) delete stateCache[channelId]
     }
 }
 
@@ -142,5 +153,6 @@ module.exports = {
     startGame,
     stopGame,
     recordWord,
-    removeGameState
+    removeGameState,
+    removeGameStates
 }

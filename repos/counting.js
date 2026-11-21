@@ -75,6 +75,17 @@ const unsetChannel = (channelId) => enqueue(channelId, async () => {
     stateCache.delete(channelId)
 })
 
+// Caller chặn lượt mới của guild; chờ các lượt đã xếp hàng ghi xong trước khi xoá.
+const removeGuild = async (guildId) => {
+    const channelIds = getAllConfigs().filter(entry => entry.guildId === guildId).map(entry => entry.channel)
+    await Promise.all(channelIds.map(channelId => queues.get(channelId)))
+    const { error } = await supabase.from('counting_channels').delete().eq('guild_id', guildId)
+    if (error) throw new Error('Lỗi xoá counting_channels: ' + error.message)
+    for (const [channelId, state] of stateCache) {
+        if (state.guildId === guildId) stateCache.delete(channelId)
+    }
+}
+
 const submitCount = (channelId, content, userId) => {
     const text = content.trim()
     // Bỏ qua trò chuyện; số âm, số thập phân vẫn là một lượt đếm sai.
@@ -92,4 +103,4 @@ const submitCount = (channelId, content, userId) => {
     })
 }
 
-module.exports = { loadCountingStates, getState, getAllConfigs, setChannel, unsetChannel, submitCount }
+module.exports = { loadCountingStates, getState, getAllConfigs, setChannel, unsetChannel, removeGuild, submitCount }

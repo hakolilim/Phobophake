@@ -147,6 +147,12 @@ const countAllPlayers = () => {
     return count
 }
 
+const removeGuild = async (guildId) => {
+    const { error } = await supabase.from('rankings').delete().eq('guild_id', guildId)
+    if (error) throw new Error('Lỗi xoá rankings: ' + error.message)
+    delete rankCache[guildId]
+}
+
 module.exports = {
     loadRankings,
     getGuildPlayers,
@@ -155,5 +161,6 @@ module.exports = {
     initRankDataForUser,
     updateUserInfo,
     updateRankingForUser,
-    countAllPlayers
+    countAllPlayers,
+    removeGuild
 }
