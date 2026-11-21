@@ -19,7 +19,7 @@ Người duy trì: **hakolilim**. Để được hỗ trợ, báo lỗi hoặc y
 
 ### Yêu cầu
 
-- **Node.js >= 24**, Yarn và Git.
+- **Node.js >= 24**, Corepack và Git. Corepack dùng phiên bản Yarn 4 đã ghim trong `package.json`.
 - Một ứng dụng bot Discord và bot token.
 - Một project Supabase với URL và khoá `service_role`.
 - Kết nối tới Discord, Supabase và GitHub khi khởi tạo từ điển lần đầu; thêm kết nối tới nhà cung cấp AI nếu bật `/ai`.
@@ -32,12 +32,17 @@ Mời bot vào máy chủ với các scope `bot` và `applications.commands`. C�
 
 ### Cài mã nguồn và cơ sở dữ liệu
 
+Nếu máy chưa có Corepack, cài bằng `npm install -g corepack` trước.
+
 ```bash
 git clone https://github.com/hakolilim/Phobophake.git
 cd Phobophake
-yarn
+corepack enable yarn
+yarn install
 cp .env.example .env
 ```
+
+Nếu `yarn --version` vẫn báo 1.x sau khi bật Corepack, dùng `corepack yarn install`. Chạy lệnh cài đặt trên từng máy triển khai để Yarn chọn gói Sharp theo hệ điều hành, kiến trúc CPU và libc của máy đó.
 
 Mở SQL Editor của project Supabase và chạy [`supabase/schema.sql`](supabase/schema.sql) để tạo các bảng. Nếu nâng cấp từ bản cũ, đọc các hướng dẫn migration trong file này; cơ sở dữ liệu cũ có thể cần đổi khoá chính của `guild_config` từ `guild_id` sang `channel_id`.
 
@@ -163,7 +168,7 @@ Hai trang chính sách được dựng từ [`PRIVACY_POLICY.md`](PRIVACY_POLICY
 
 ## Triển khai và failover
 
-Trên dịch vụ chạy ứng dụng Node, dùng lệnh cài đặt `yarn`, lệnh khởi động `yarn start`, cấu hình các biến môi trường ở trên và chuyển tiếp HTTP đến cổng `PORT`. Có thể dùng `/health` cho health check; endpoint này xác nhận web server đang đáp ứng, không kiểm tra lại kết nối Supabase ở từng request. Process cần chạy liên tục để bot nhận sự kiện Discord.
+Trên dịch vụ chạy ứng dụng Node, bật Yarn qua Corepack, dùng lệnh cài đặt `yarn install` và lệnh khởi động `yarn start`. Cấu hình các biến môi trường ở trên và chuyển tiếp HTTP đến cổng `PORT`. Có thể dùng `/health` cho health check; endpoint này xác nhận web server đang đáp ứng, không kiểm tra lại kết nối Supabase ở từng request. Process cần chạy liên tục để bot nhận sự kiện Discord.
 
 Chỉ chạy **một instance hoạt động tại một thời điểm**. Mỗi instance giữ cache RAM riêng và không nhận cập nhật trực tiếp từ instance khác. Khi chuyển VPS, dừng instance cũ trước rồi khởi động instance mới; bot mới nạp lại state từ cùng Supabase. Việc sao lưu và khôi phục dữ liệu thực hiện trên cơ sở dữ liệu; không dựa vào thư mục `data/` cũ.
 

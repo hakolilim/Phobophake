@@ -121,7 +121,8 @@ Bot cần các intent sau:
 
 ```bash
 # Cài dependencies
-yarn
+corepack enable yarn
+yarn install
 
 # Cấu hình .env: BOT_TOKEN, SUPABASE_URL, SUPABASE_KEY (service_role), REPORT_CHANNEL (tùy chọn)
 # Chạy supabase/schema.sql trong Supabase SQL Editor 1 lần để tạo bảng
@@ -150,9 +151,7 @@ node bot
 
 7. **Failover (active–standby)**: Mỗi lúc chỉ chạy 1 instance. Khi chuyển VPS, instance mới `bootstrap()` nạp lại toàn bộ state từ Supabase. Không chạy đồng thời nhiều instance vì cache RAM của chúng sẽ không đồng bộ với nhau (chỉ đồng bộ qua DB lúc khởi động).
 
-8. **Múi giờ**: Nếu cần thêm timestamp, `moment-timezone` đã có trong dependencies.
-
-9. **Cờ ephemeral (discord.js 14.16+)**: Không truyền `ephemeral: true` / `fetchReply: true` trong `interaction.reply()` / `deferReply()` nữa — discord.js đã deprecate và in cảnh báo `Supplying "ephemeral" for interaction response options is deprecated. Utilize flags instead.` Dùng `flags: MessageFlags.Ephemeral` (import `MessageFlags` từ `discord.js`, giá trị 64) và `withResponse: true` (lấy message qua `response.resource.message`) hoặc `await interaction.fetchReply()`. `editReply()` không đổi được ephemeral → không truyền cờ này khi edit. Cờ `MessageFlags.SuppressNotifications` (4096) là cờ **khác**, chỉ dùng cho tin nhắn im lặng trong kênh chơi.
+8. **Cờ ephemeral (discord.js 14.16+)**: Không truyền `ephemeral: true` / `fetchReply: true` trong `interaction.reply()` / `deferReply()` nữa — discord.js đã deprecate và in cảnh báo `Supplying "ephemeral" for interaction response options is deprecated. Utilize flags instead.` Dùng `flags: MessageFlags.Ephemeral` (import `MessageFlags` từ `discord.js`, giá trị 64) và `withResponse: true` (lấy message qua `response.resource.message`) hoặc `await interaction.fetchReply()`. `editReply()` không đổi được ephemeral → không truyền cờ này khi edit. Cờ `MessageFlags.SuppressNotifications` (4096) là cờ **khác**, chỉ dùng cho tin nhắn im lặng trong kênh chơi.
 
 ## Dependencies chính
 
@@ -161,7 +160,6 @@ node bot
 - `dotenv@17` - load `.env`
 - `axios@1.20` - fetch từ điển từ GitHub (seed lần đầu)
 - `express@5` - web server health check / status
-- `moment-timezone@0.6` - handle time (nếu cần)
 
 Yêu cầu **Node >= 22** (supabase-js 2.110+ cần native WebSocket; `db/supabase.js` không còn transport `ws` thủ công).
 
