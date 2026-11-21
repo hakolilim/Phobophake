@@ -19,7 +19,7 @@ Người duy trì: **hakolilim**. Để được hỗ trợ, báo lỗi hoặc y
 
 ### Yêu cầu
 
-- **Node.js >= 22**, Yarn và Git.
+- **Node.js >= 24**, Yarn và Git.
 - Một ứng dụng bot Discord và bot token.
 - Một project Supabase với URL và khoá `service_role`.
 - Kết nối tới Discord, Supabase và GitHub khi khởi tạo từ điển lần đầu; thêm kết nối tới nhà cung cấp AI nếu bật `/ai`.
