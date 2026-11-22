@@ -1,4 +1,5 @@
 const express = require('express')
+const { OAuth2Scopes, PermissionFlagsBits } = require('discord.js')
 const stats = require('../repos/stats')
 const ranking = require('../repos/ranking')
 const dictionary = require('../repos/words')
@@ -233,6 +234,24 @@ function createWebApp(client) {
 
     app.get('/suggest', (_req, res) => {
         res.type('html').send(renderSuggestPage())
+    })
+
+    app.get('/invite', (_req, res) => {
+        if (!client?.application?.id) {
+            return res.status(503).type('text').send('Chưa thể tạo liên kết mời bot. Vui lòng thử lại sau.')
+        }
+
+        res.redirect(client.generateInvite({
+            scopes: [OAuth2Scopes.Bot, OAuth2Scopes.ApplicationsCommands],
+            permissions: [
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.SendMessages,
+                PermissionFlagsBits.EmbedLinks,
+                PermissionFlagsBits.AttachFiles,
+                PermissionFlagsBits.AddReactions,
+                PermissionFlagsBits.ReadMessageHistory
+            ]
+        }))
     })
 
     return app

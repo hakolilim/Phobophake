@@ -28,7 +28,7 @@ Người duy trì: **hakolilim**. Để được hỗ trợ, báo lỗi hoặc y
 
 Tạo ứng dụng bot của riêng bạn trong [Discord Developer Portal](https://discord.com/developers/applications), lấy bot token và bật **Message Content Intent**. Mã nguồn sử dụng các intent `Guilds`, `GuildMessages` và `MessageContent`.
 
-Mời bot vào máy chủ với các scope `bot` và `applications.commands`. Cấp quyền **View Channel**, **Send Messages**, **Embed Links**, **Add Reactions**; thêm **Read Message History** cho đếm số và lấy ngữ cảnh AI. Bot cần truy cập được kênh trò chơi và kênh báo cáo nếu sử dụng tính năng duyệt từ.
+Mời bot vào máy chủ với các scope `bot` và `applications.commands`. Cấp quyền **View Channel**, **Send Messages**, **Embed Links** và **Add Reactions**. Dùng thêm **Read Message History** cho đếm số và ngữ cảnh AI, cùng **Attach Files** cho ảnh công thức trong câu trả lời AI. Bot cần truy cập được kênh trò chơi và kênh báo cáo nếu sử dụng tính năng duyệt từ.
 
 ### Cài mã nguồn và cơ sở dữ liệu
 
@@ -160,6 +160,7 @@ Web server dùng `PORT` (mặc định `3000`). Khi chạy tại máy cá nhân,
 | `/health` | Health check trả `{ "status": "ok" }` khi web server đã mở. |
 | `/api/status` | Trạng thái và thống kê dạng JSON. |
 | `/suggest` | Giao diện tra từ có thể nối tiếp. |
+| `/invite` | Chuyển đến Discord để thêm bot đang chạy vào máy chủ. |
 | `/api/suggest?word=học%20sinh` | Danh sách từ nối tiếp dạng JSON; thiếu hoặc rỗng `word` trả HTTP 400. |
 | `/privacy-policy` | Privacy Policy bằng tiếng Anh. |
 | `/terms-of-service` | Terms of Service bằng tiếng Anh. |

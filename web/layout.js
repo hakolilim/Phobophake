@@ -5,6 +5,7 @@ const escapeHtml = text => String(text).replace(/[&<>"']/g, character => ({
 const navigation = [
     ['/', 'Bot Status'],
     ['/suggest', 'Gợi ý từ nối tiếp', 'vi'],
+    ['/invite', 'Mời bot', 'vi'],
     ['/privacy-policy', 'Privacy Policy'],
     ['/terms-of-service', 'Terms of Service']
 ]
